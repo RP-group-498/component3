@@ -1,0 +1,18 @@
+:root{--bg:#f5f7fb;--card:#ffffff;--accent:#2b6cff;--muted:#6b7280}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial;background:var(--bg);color:#111}
+.container{max-width:800px;margin:36px auto;padding:24px;background:linear-gradient(180deg,rgba(255,255,255,0.7),rgba(255,255,255,0.9));border-radius:12px;box-shadow:0 6px 18px rgba(15,23,42,0.08)}
+h1{margin:0 0 16px;font-size:28px}
+.task-input{display:flex;gap:8px;margin-bottom:16px}
+.task-input input{flex:1;padding:10px 12px;border:1px solid #e6e9ef;border-radius:8px;font-size:15px}
+.task-input button{background:var(--accent);color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer}
+.task-list{list-style:none;margin:0;padding:0}
+.task-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:8px;margin-bottom:8px;background:var(--card);border:1px solid #eef2ff}
+.task-left{display:flex;align-items:center;gap:12px}
+.task-left input[type=checkbox]{width:18px;height:18px}
+.task-text{font-size:15px}
+.task-text.completed{text-decoration:line-through;color:var(--muted)}
+.task-actions{display:flex;gap:8px}
+.small-btn{background:#f3f4f6;border:0;padding:6px 8px;border-radius:6px;cursor:pointer}
+.small-btn.delete{background:#ffecec;color:#b91c1c}
+.footer{margin-top:16px;color:var(--muted);font-size:13px}
