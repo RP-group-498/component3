@@ -1,3 +1,4 @@
+const { ipcRenderer } = require('electron');
 const modalTaskName = document.getElementById('modalTaskName');
 const deadlineDate = document.getElementById('deadlineDate');
 const deadlineTime = document.getElementById('deadlineTime');
@@ -152,6 +153,8 @@ function validateForm() {
 
 function saveTasks() {
   localStorage.setItem('tasks', JSON.stringify(tasks));
+  // inform main process about tasks so it can schedule system notifications
+  try { ipcRenderer.send('notify:tasks', tasks); } catch (e) { /* ignore if ipc not available */ }
 }
 
 function loadTasks() {
@@ -293,6 +296,8 @@ function addTask() {
     value: parseFloat(valueInput.value),
     impulsivity: parseFloat(impulsivity.value),
     delay: calculatedDelay !== null ? calculatedDelay : 999,
+    // track when we last notified about this task so we can repeat every minute
+    lastNotified: null,
     done: false,
     created: Date.now()
   };
@@ -318,6 +323,9 @@ function addTask() {
   saveTasks();
   render();
 }
+
+// Notification handling moved to the main process via IPC.
+// The renderer informs the main process of the current tasks by calling ipcRenderer.send('notify:tasks', tasks)
 
 function toggleDone(idx) {
   tasks[idx].done = !tasks[idx].done;
@@ -410,3 +418,5 @@ document.addEventListener('keydown', (e) => {
 // initialize
 loadTasks();
 render();
+// inform main process about existing tasks for notification scheduling
+try { ipcRenderer.send('notify:tasks', tasks); } catch (e) { }
