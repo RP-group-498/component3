@@ -1,4 +1,4 @@
-# Task Manager (Electron)
+# Focus - Productivity App (Electron)
 
 A minimal Task Manager UI for development with Electron.
 

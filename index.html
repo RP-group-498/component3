@@ -1,25 +1,104 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Task Manager</title>
+  <title>Focus</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
+
 <body>
   <div class="container">
-    <h1>Task Manager</h1>
+    <h1>Focus</h1>
 
-    <div class="task-input">
-      <input id="taskInput" type="text" placeholder="Add a new task..." />
-      <button id="addBtn">Add</button>
+    <div class="controls-row">
+      <div class="actions">
+        <button id="addBtn">Add task</button>
+      </div>
     </div>
 
-    <ul id="taskList" class="task-list"></ul>
+    <!-- Modal popup for task details -->
+    <div id="taskModal" class="modal" role="dialog" aria-hidden="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-panel" role="document">
+        <header class="modal-header">
+          <h2 class="modal-title">New Task</h2>
+          <button id="cancelBtn" class="ghost" aria-label="Close">✕</button>
+        </header>
 
-    <div class="footer">Tasks persist in localStorage.</div>
+        <div class="modal-body">
+          <label class="field">
+            <span>Task</span>
+            <input id="modalTaskName" type="text" placeholder="Task name" />
+            <div id="nameError" class="field-error"></div>
+          </label>
+
+          <div class="input-row compact">
+            <label class="field small">
+              <span>Date</span>
+              <input id="deadlineDate" type="date" required />
+              <div id="dateError" class="field-error"></div>
+            </label>
+            <label class="field small">
+              <span>Time</span>
+              <input id="deadlineTime" type="time" required />
+              <div id="timeError" class="field-error"></div>
+            </label>
+            <label class="field small">
+              <span>Category</span>
+              <select id="category" required>
+                <option value="personal">Personal</option>
+                <option value="uni">Uni</option>
+                <option value="work">Work</option>
+              </select>
+              <div id="categoryError" class="field-error"></div>
+            </label>
+          </div>
+
+          <div class="sliders">
+            <label class="slider-field">
+              <span>Expectancy <span class="info"
+                  data-tooltip="Your belief in successfully completing the task (probability of success). Higher increases motivation.">ℹ️</span></span>
+              <input id="expectancy" type="range" min="0" max="10" step="0.5" value="5" class="slider" />
+            </label>
+
+            <label class="slider-field">
+              <span>Value <span class="info"
+                  data-tooltip="How much you desire the reward or outcome of completing the task. Higher value increases motivation.">ℹ️</span></span>
+              <input id="value" type="range" min="0" max="10" step="0.5" value="5" class="slider" />
+            </label>
+
+            <label class="slider-field">
+              <span>Impulsivity <span class="info"
+                  data-tooltip="Your tendency to be distracted or give in to immediate gratification. Higher impulsivity reduces motivation.">ℹ️</span></span>
+              <input id="impulsivity" type="range" min="0" max="10" step="0.5" value="5" class="slider" />
+            </label>
+          </div>
+
+          <div class="delay-display compact">
+            <div class="delay-info">
+              <div id="delayDisplay" class="delay-value">Set a deadline</div>
+            </div>
+          </div>
+        </div>
+
+        <footer class="modal-footer">
+          <div id="formError" class="field-error"></div>
+          <button id="createBtn" class="primary" disabled>Create</button>
+        </footer>
+      </div>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <ul id="taskList" class="task-list"></ul>
+
+  <div class="footer">Tasks persist in localStorage.</div>
   </div>
 
   <script src="renderer.js"></script>
 </body>
+
 </html>
