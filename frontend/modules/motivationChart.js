@@ -176,9 +176,9 @@ function drawAxes(dataPoints, padding, chartWidth, chartHeight) {
 
   // X-axis time labels
   if (dataPoints && dataPoints.length > 0) {
-    const now = Date.now();
     const oldestDate = dataPoints[0].date;
-    const timeRange = now - oldestDate || 1;
+    const newestDate = dataPoints[dataPoints.length - 1].date;
+    const timeRange = newestDate - oldestDate || 1;
 
     // Calculate number of time labels to show (aim for ~5-8 labels)
     const numLabels = Math.min(8, Math.max(3, Math.floor(chartWidth / 80)));
@@ -258,9 +258,9 @@ function drawGrid(dataPoints, padding, chartWidth, chartHeight) {
 function drawMotivationLine(dataPoints, padding, chartWidth, chartHeight) {
   if (dataPoints.length === 0) return;
 
-  const now = Date.now();
   const oldestDate = dataPoints[0].date;
-  const timeRange = now - oldestDate || 1;
+  const newestDate = dataPoints[dataPoints.length - 1].date;
+  const timeRange = newestDate - oldestDate || 1;
 
   // Convert data points to coordinates
   const points = dataPoints.map(point => ({
@@ -325,9 +325,11 @@ function drawMotivationLine(dataPoints, padding, chartWidth, chartHeight) {
  * Draw individual data points
  */
 function drawDataPoints(dataPoints, padding, chartWidth, chartHeight) {
-  const now = Date.now();
+  if (dataPoints.length === 0) return;
+
   const oldestDate = dataPoints[0].date;
-  const timeRange = now - oldestDate || 1;
+  const newestDate = dataPoints[dataPoints.length - 1].date;
+  const timeRange = newestDate - oldestDate || 1;
 
   dataPoints.forEach(point => {
     const x = padding.left + ((point.date - oldestDate) / timeRange) * chartWidth;
@@ -360,9 +362,9 @@ function drawDataPoints(dataPoints, padding, chartWidth, chartHeight) {
 function drawTrendLine(dataPoints, padding, chartWidth, chartHeight) {
   if (dataPoints.length < 2) return;
 
-  const now = Date.now();
   const oldestDate = dataPoints[0].date;
-  const timeRange = now - oldestDate || 1;
+  const newestDate = dataPoints[dataPoints.length - 1].date;
+  const timeRange = newestDate - oldestDate || 1;
 
   // Calculate linear regression
   const n = dataPoints.length;

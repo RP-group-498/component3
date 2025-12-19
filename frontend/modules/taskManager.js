@@ -46,7 +46,12 @@ function migrateLegacyTask(task) {
     task.status = task.done ? 'completed' : 'pending';
   }
 
-  // Add estimated duration (default: null)
+  // Add subtasks array
+  if (!task.subtasks) {
+    task.subtasks = [];
+  }
+
+  // Estimated duration is now calculated from subtasks (keep old value for migration)
   if (task.estimatedDuration === undefined) {
     task.estimatedDuration = null;
   }
@@ -262,7 +267,12 @@ async function createTask(taskData) {
     deadlineDate: taskData.deadlineDate || null,
     deadlineTime: taskData.deadlineTime || null,
     category: taskData.category || 'personal',
-    estimatedDuration: taskData.estimatedDuration || null,
+
+    // Subtasks - each has: id, text, estimatedDuration (minutes), done
+    subtasks: [],
+
+    // Estimated duration is calculated from subtasks
+    estimatedDuration: null,
 
     // TMT values (calculated, not user input)
     expectancy: defaultTMT.expectancy,
@@ -665,6 +675,178 @@ function generateUUID() {
   });
 }
 
+/**
+ * Calculate estimated duration from subtasks
+ * @param {Object} task - Task object
+ * @returns {number} Total estimated duration in minutes
+ */
+function calculateEstimatedDuration(task) {
+  if (!task.subtasks || task.subtasks.length === 0) {
+    return 0;
+  }
+
+  return task.subtasks.reduce((total, subtask) => {
+    return total + (subtask.estimatedDuration || 0);
+  }, 0);
+}
+
+/**
+ * Add a subtask to a task
+ * @param {string} taskId - Task ID
+ * @param {Object} subtaskData - Subtask data {text, estimatedDuration}
+ * @returns {Object} Updated task
+ */
+async function addSubtask(taskId, subtaskData) {
+  const task = getTaskById(taskId);
+  if (!task) {
+    console.error('[TaskManager] Task not found:', taskId);
+    return null;
+  }
+
+  const subtask = {
+    id: generateUUID(),
+    text: subtaskData.text,
+    estimatedDuration: subtaskData.estimatedDuration || 0, // in minutes
+    done: false,
+    created: Date.now()
+  };
+
+  task.subtasks.push(subtask);
+
+  // Update task's calculated estimated duration
+  task.estimatedDuration = calculateEstimatedDuration(task);
+
+  saveTasks();
+
+  // Log event
+  if (window.EventLogger) {
+    await window.EventLogger.logEvent('subtask_created', {
+      task_id: taskId,
+      subtask_id: subtask.id
+    });
+  }
+
+  // Recalculate TMT (duration affects value calculation)
+  recalculateTMT(taskId);
+
+  console.log(`[TaskManager] Subtask added to task ${taskId}:`, subtask.text);
+  return task;
+}
+
+/**
+ * Delete a subtask from a task
+ * @param {string} taskId - Task ID
+ * @param {string} subtaskId - Subtask ID
+ * @returns {Object} Updated task
+ */
+async function deleteSubtask(taskId, subtaskId) {
+  const task = getTaskById(taskId);
+  if (!task) return null;
+
+  const index = task.subtasks.findIndex(st => st.id === subtaskId);
+  if (index === -1) {
+    console.error('[TaskManager] Subtask not found:', subtaskId);
+    return null;
+  }
+
+  task.subtasks.splice(index, 1);
+
+  // Update task's calculated estimated duration
+  task.estimatedDuration = calculateEstimatedDuration(task);
+
+  saveTasks();
+
+  // Log event
+  if (window.EventLogger) {
+    await window.EventLogger.logEvent('subtask_deleted', {
+      task_id: taskId,
+      subtask_id: subtaskId
+    });
+  }
+
+  // Recalculate TMT
+  recalculateTMT(taskId);
+
+  console.log(`[TaskManager] Subtask deleted from task ${taskId}`);
+  return task;
+}
+
+/**
+ * Toggle subtask done status
+ * @param {string} taskId - Task ID
+ * @param {string} subtaskId - Subtask ID
+ * @returns {Object} Updated task
+ */
+async function toggleSubtask(taskId, subtaskId) {
+  const task = getTaskById(taskId);
+  if (!task) return null;
+
+  const subtask = task.subtasks.find(st => st.id === subtaskId);
+  if (!subtask) {
+    console.error('[TaskManager] Subtask not found:', subtaskId);
+    return null;
+  }
+
+  subtask.done = !subtask.done;
+
+  saveTasks();
+
+  // Log event
+  if (window.EventLogger) {
+    await window.EventLogger.logEvent(subtask.done ? 'subtask_completed' : 'subtask_uncompleted', {
+      task_id: taskId,
+      subtask_id: subtaskId
+    });
+  }
+
+  console.log(`[TaskManager] Subtask ${subtask.done ? 'completed' : 'uncompleted'}:`, subtask.text);
+  return task;
+}
+
+/**
+ * Update a subtask
+ * @param {string} taskId - Task ID
+ * @param {string} subtaskId - Subtask ID
+ * @param {Object} updates - Fields to update {text, estimatedDuration}
+ * @returns {Object} Updated task
+ */
+async function updateSubtask(taskId, subtaskId, updates) {
+  const task = getTaskById(taskId);
+  if (!task) return null;
+
+  const subtask = task.subtasks.find(st => st.id === subtaskId);
+  if (!subtask) {
+    console.error('[TaskManager] Subtask not found:', subtaskId);
+    return null;
+  }
+
+  if (updates.text !== undefined) {
+    subtask.text = updates.text;
+  }
+  if (updates.estimatedDuration !== undefined) {
+    subtask.estimatedDuration = updates.estimatedDuration;
+  }
+
+  // Update task's calculated estimated duration
+  task.estimatedDuration = calculateEstimatedDuration(task);
+
+  saveTasks();
+
+  // Log event
+  if (window.EventLogger) {
+    await window.EventLogger.logEvent('subtask_updated', {
+      task_id: taskId,
+      subtask_id: subtaskId
+    });
+  }
+
+  // Recalculate TMT (duration affects value calculation)
+  recalculateTMT(taskId);
+
+  console.log(`[TaskManager] Subtask updated:`, subtask.text);
+  return task;
+}
+
 // Export API
 if (typeof window !== 'undefined') {
   window.TaskManager = {
@@ -686,6 +868,12 @@ if (typeof window !== 'undefined') {
     getTotalTimeSpent,
     checkForCrashedSession,
     recoverCrashedSession,
-    recalculateTMT
+    recalculateTMT,
+    // Subtask management
+    addSubtask,
+    deleteSubtask,
+    toggleSubtask,
+    updateSubtask,
+    calculateEstimatedDuration
   };
 }

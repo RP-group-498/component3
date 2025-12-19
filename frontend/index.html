@@ -56,18 +56,6 @@
             </label>
           </div>
 
-          <div class="input-row compact">
-            <label class="field small">
-              <span>Est. Hours</span>
-              <input id="durationHours" type="number" min="0" max="100" value="0" placeholder="0" />
-            </label>
-            <label class="field small">
-              <span>Est. Minutes</span>
-              <input id="durationMinutes" type="number" min="0" max="59" value="0" placeholder="0" />
-            </label>
-            <div class="field small"></div>
-          </div>
-
           <div class="tmt-info">
             <p class="tmt-notice">📊 TMT variables (Expectancy, Value, Impulsiveness, Delay) are automatically calculated from your behavior patterns.</p>
           </div>
@@ -79,8 +67,40 @@
         </footer>
       </div>
     </div>
-  </div>
-  </div>
+
+  <!-- Subtask Modal -->
+  <div id="subtaskModal" class="modal" role="dialog" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel subtask-modal" role="document">
+      <header class="modal-header">
+        <h2 class="modal-title">Add Subtask</h2>
+        <button id="subtaskCancelBtn" class="ghost" aria-label="Close">✕</button>
+      </header>
+
+      <div class="modal-body">
+        <label class="field">
+          <span>Subtask</span>
+          <input id="subtaskText" type="text" placeholder="Subtask description" />
+          <div id="subtaskTextError" class="field-error"></div>
+        </label>
+
+        <div class="input-row compact">
+          <label class="field small">
+            <span>Est. Hours</span>
+            <input id="subtaskHours" type="number" min="0" max="100" value="0" placeholder="0" />
+          </label>
+          <label class="field small">
+            <span>Est. Minutes</span>
+            <input id="subtaskMinutes" type="number" min="0" max="59" value="0" placeholder="0" />
+          </label>
+        </div>
+      </div>
+
+      <footer class="modal-footer">
+        <div id="subtaskFormError" class="field-error"></div>
+        <button id="subtaskSaveBtn" class="primary">Add Subtask</button>
+      </footer>
+    </div>
   </div>
 
   <ul id="taskList" class="task-list"></ul>

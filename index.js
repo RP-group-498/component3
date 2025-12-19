@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain, Notification, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
-const getActiveWindow = require('@miniben90/x-win');
+const { activeWindowAsync } = require('@miniben90/x-win');
 
 let tray = null;
 let mainWindow = null;
@@ -497,7 +497,7 @@ function startActiveWindowMonitoring(taskId) {
   // Check active window every 10 seconds
   activeWindowMonitor = setInterval(async () => {
     try {
-      const activeWin = await getActiveWindow();
+      const activeWin = await activeWindowAsync();
 
       if (!activeWin || !isTaskInProgress) {
         return;

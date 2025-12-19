@@ -120,6 +120,12 @@ function createTaskElement(task, index) {
   content.appendChild(titleRow);
   content.appendChild(details);
 
+  // Subtasks section
+  const subtasksSection = createSubtasksSection(task);
+  if (subtasksSection) {
+    content.appendChild(subtasksSection);
+  }
+
   left.appendChild(chk);
   left.appendChild(content);
 
@@ -256,6 +262,128 @@ function createMetricBar(label, value, icon, inverse = false) {
   container.appendChild(valueDiv);
 
   return container;
+}
+
+/**
+ * Create subtasks section
+ * @param {Object} task - Task object
+ * @returns {HTMLElement|null} Subtasks section
+ */
+function createSubtasksSection(task) {
+  const container = document.createElement('div');
+  container.className = 'subtasks-section';
+
+  // Header with total estimated time and add button
+  const header = document.createElement('div');
+  header.className = 'subtasks-header';
+
+  const titleDiv = document.createElement('div');
+  titleDiv.className = 'subtasks-title';
+
+  // Calculate total estimated time from subtasks
+  const totalMinutes = window.TaskManager
+    ? window.TaskManager.calculateEstimatedDuration(task)
+    : 0;
+
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const timeStr = hours > 0
+    ? `${hours}h ${minutes}m`
+    : `${minutes}m`;
+
+  titleDiv.innerHTML = `
+    <span class="subtasks-label">📋 Subtasks</span>
+    <span class="subtasks-time">Est. Time: ${timeStr}</span>
+  `;
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'add-subtask-btn';
+  addBtn.textContent = '+ Add';
+  addBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (window.handleAddSubtask) {
+      window.handleAddSubtask(task.id);
+    }
+  });
+
+  header.appendChild(titleDiv);
+  header.appendChild(addBtn);
+
+  container.appendChild(header);
+
+  // Subtasks list
+  if (task.subtasks && task.subtasks.length > 0) {
+    const list = document.createElement('div');
+    list.className = 'subtasks-list';
+
+    task.subtasks.forEach((subtask) => {
+      const item = createSubtaskItem(task.id, subtask);
+      list.appendChild(item);
+    });
+
+    container.appendChild(list);
+  }
+
+  return container;
+}
+
+/**
+ * Create subtask item
+ * @param {string} taskId - Parent task ID
+ * @param {Object} subtask - Subtask object
+ * @returns {HTMLElement} Subtask item
+ */
+function createSubtaskItem(taskId, subtask) {
+  const item = document.createElement('div');
+  item.className = 'subtask-item' + (subtask.done ? ' done' : '');
+
+  // Checkbox
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.className = 'subtask-checkbox';
+  checkbox.checked = subtask.done;
+  checkbox.addEventListener('change', (e) => {
+    e.stopPropagation();
+    if (window.handleToggleSubtask) {
+      window.handleToggleSubtask(taskId, subtask.id);
+    }
+  });
+
+  // Text
+  const text = document.createElement('span');
+  text.className = 'subtask-text';
+  text.textContent = subtask.text;
+
+  // Time
+  const time = document.createElement('span');
+  time.className = 'subtask-time';
+  const hours = Math.floor(subtask.estimatedDuration / 60);
+  const minutes = subtask.estimatedDuration % 60;
+  const timeStr = hours > 0
+    ? `${hours}h ${minutes}m`
+    : `${minutes}m`;
+  time.textContent = timeStr;
+
+  // Delete button
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'subtask-delete-btn';
+  deleteBtn.textContent = '✕';
+  deleteBtn.title = 'Delete subtask';
+  deleteBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (confirm(`Delete subtask "${subtask.text}"?`)) {
+      if (window.handleDeleteSubtask) {
+        window.handleDeleteSubtask(taskId, subtask.id);
+      }
+    }
+  });
+
+  item.appendChild(checkbox);
+  item.appendChild(text);
+  item.appendChild(time);
+  item.appendChild(deleteBtn);
+
+  return item;
 }
 
 /**

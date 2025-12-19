@@ -18,8 +18,6 @@ const modalTaskName = document.getElementById('modalTaskName');
 const deadlineDate = document.getElementById('deadlineDate');
 const deadlineTime = document.getElementById('deadlineTime');
 const category = document.getElementById('category');
-const durationHours = document.getElementById('durationHours');
-const durationMinutes = document.getElementById('durationMinutes');
 
 // Timer Elements
 const timerContainer = document.getElementById('timerContainer');
@@ -63,8 +61,6 @@ async function init() {
     deadlineDate,
     deadlineTime,
     category,
-    durationHours,
-    durationMinutes,
     timerContainer,
     timerTaskName,
     timerMinutes,
@@ -145,6 +141,13 @@ function setupActiveWindowListeners() {
   let procrastinationStartTime = null;
   let currentCategory = null;
 
+  // Track productive time
+  let productiveStartTime = null;
+  let productiveCategory = null;
+
+  // Track last working state for app switches
+  let lastWorkingState = true;
+
   // Listen for active window updates (every 10 seconds from main process)
   ipcRenderer.on('active-window:update', (event, data) => {
     const { taskId, appName, windowTitle, isWorking, category, detail, confidence, isProcrastinating, timestamp } = data;
@@ -159,6 +162,21 @@ function setupActiveWindowListeners() {
           ? `Procrastination started: ${detail} (Website)`
           : `Procrastination started: ${appName}`;
         console.log(`[Procrastination] ${logMsg}`);
+      }
+
+      // End productive time tracking
+      if (productiveStartTime && productiveCategory) {
+        const productiveDuration = (timestamp - productiveStartTime) / 1000; // seconds
+        const task = TaskManager.getTaskById(taskId);
+        if (task && window.TMTEngine && productiveDuration > 5) { // Only track if > 5 seconds
+          window.TMTEngine.updateBehavioralData(task, 'productive_time_tracked', {
+            duration: productiveDuration,
+            category: productiveCategory
+          });
+          TaskManager.saveTasks();
+        }
+        productiveStartTime = null;
+        productiveCategory = null;
       }
     } else {
       // User is working (IDE or academic website)
@@ -188,11 +206,37 @@ function setupActiveWindowListeners() {
         currentCategory = null;
       }
 
-      // Log productive activity
-      if (category === 'academic-web') {
-        console.log(`[Academic Work] ${detail} (confidence: ${(confidence * 100).toFixed(0)}%)`);
+      // Start/continue productive time tracking
+      if (category === 'ide' || category === 'academic-web') {
+        if (!productiveStartTime || productiveCategory !== category) {
+          // Save previous productive session if category changed
+          if (productiveStartTime && productiveCategory) {
+            const productiveDuration = (timestamp - productiveStartTime) / 1000;
+            const task = TaskManager.getTaskById(taskId);
+            if (task && window.TMTEngine && productiveDuration > 5) {
+              window.TMTEngine.updateBehavioralData(task, 'productive_time_tracked', {
+                duration: productiveDuration,
+                category: productiveCategory
+              });
+              TaskManager.saveTasks();
+            }
+          }
+          // Start new productive session
+          productiveStartTime = timestamp;
+          productiveCategory = category;
+        }
+
+        // Log productive activity
+        if (category === 'academic-web') {
+          console.log(`[Academic Work] ${detail} (confidence: ${(confidence * 100).toFixed(0)}%)`);
+        } else if (category === 'ide') {
+          console.log(`[IDE Work] ${appName}`);
+        }
       }
     }
+
+    // Update last working state for next app switch
+    lastWorkingState = isWorking;
   });
 
   // Listen for app switches
@@ -210,14 +254,15 @@ function setupActiveWindowListeners() {
     const label = categoryLabels[toCategory] || toCategory;
     console.log(`[App Switch] ${from} -> ${toDetail || to} (${label})`);
 
-    // Log app switch event
+    // Log app switch event with fromWorking state
     const task = TaskManager.getTaskById(taskId);
     if (task && window.TMTEngine) {
       window.TMTEngine.updateBehavioralData(task, 'app_switched', {
         from,
         to: toDetail || to,
         category: toCategory,
-        isWorking
+        isWorking,
+        fromWorking: lastWorkingState // Include previous working state
       });
 
       // Increment app background events count for non-productive switches
@@ -228,6 +273,9 @@ function setupActiveWindowListeners() {
 
       TaskManager.recalculateTMT(taskId);
     }
+
+    // Update last working state
+    lastWorkingState = isWorking;
   });
 }
 
@@ -247,6 +295,35 @@ function wireUpEventHandlers() {
 
   // Create/Save button
   createBtn.addEventListener('click', handleTaskSubmit);
+
+  // Subtask modal buttons
+  const subtaskCancelBtn = document.getElementById('subtaskCancelBtn');
+  const subtaskSaveBtn = document.getElementById('subtaskSaveBtn');
+  const subtaskModal = document.getElementById('subtaskModal');
+
+  if (subtaskCancelBtn) {
+    subtaskCancelBtn.addEventListener('click', hideSubtaskModal);
+  }
+
+  if (subtaskSaveBtn) {
+    subtaskSaveBtn.addEventListener('click', handleSubtaskSubmit);
+  }
+
+  // Close subtask modal on backdrop click
+  if (subtaskModal) {
+    subtaskModal.addEventListener('click', (e) => {
+      if (e.target.classList.contains('modal-backdrop')) {
+        hideSubtaskModal();
+      }
+    });
+  }
+
+  // Keyboard shortcut for subtask modal
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && subtaskModal && subtaskModal.classList.contains('visible')) {
+      hideSubtaskModal();
+    }
+  });
 
   // Form validation on input
   [modalTaskName, deadlineDate, deadlineTime, category].forEach(el => {
@@ -434,17 +511,13 @@ function validateForm() {
 async function handleTaskSubmit() {
   if (!validateForm()) return;
 
-  const estimatedDurationInMinutes =
-    (parseInt(durationHours.value) || 0) * 60 +
-    (parseInt(durationMinutes.value) || 0);
-
   const taskData = {
     text: modalTaskName.value.trim(),
     deadlineDate: deadlineDate.value,
     deadlineTime: deadlineTime.value,
-    category: category.value,
-    estimatedDuration: estimatedDurationInMinutes > 0 ? estimatedDurationInMinutes : null
-    // Note: TMT values (expectancy, value, impulsivity, delay) are now calculated automatically
+    category: category.value
+    // Note: estimatedDuration is now calculated from subtasks
+    // Note: TMT values (expectancy, value, impulsivity, delay) are calculated automatically
   };
 
   if (currentEditingTaskId) {
@@ -469,8 +542,6 @@ function resetForm() {
   deadlineDate.value = '';
   deadlineTime.value = '';
   category.value = 'personal';
-  durationHours.value = '0';
-  durationMinutes.value = '0';
 
   // Clear errors
   document.querySelectorAll('.field-error').forEach(el => el.textContent = '');
@@ -541,6 +612,77 @@ window.handleDeleteTask = async function(taskId, index) {
   await TaskManager.deleteTask(taskId);
   render();
 };
+
+// Subtask handlers
+let currentSubtaskTaskId = null;
+
+window.handleAddSubtask = function(taskId) {
+  currentSubtaskTaskId = taskId;
+  showSubtaskModal();
+};
+
+window.handleToggleSubtask = async function(taskId, subtaskId) {
+  await TaskManager.toggleSubtask(taskId, subtaskId);
+  render();
+};
+
+window.handleDeleteSubtask = async function(taskId, subtaskId) {
+  await TaskManager.deleteSubtask(taskId, subtaskId);
+  render();
+};
+
+function showSubtaskModal() {
+  const modal = document.getElementById('subtaskModal');
+  const textInput = document.getElementById('subtaskText');
+  const hoursInput = document.getElementById('subtaskHours');
+  const minutesInput = document.getElementById('subtaskMinutes');
+  const errorDiv = document.getElementById('subtaskFormError');
+
+  // Clear form
+  textInput.value = '';
+  hoursInput.value = 0;
+  minutesInput.value = 0;
+  errorDiv.textContent = '';
+
+  modal.classList.add('visible');
+  textInput.focus();
+}
+
+function hideSubtaskModal() {
+  const modal = document.getElementById('subtaskModal');
+  modal.classList.remove('visible');
+  currentSubtaskTaskId = null;
+}
+
+async function handleSubtaskSubmit() {
+  const textInput = document.getElementById('subtaskText');
+  const hoursInput = document.getElementById('subtaskHours');
+  const minutesInput = document.getElementById('subtaskMinutes');
+  const errorDiv = document.getElementById('subtaskFormError');
+
+  const text = textInput.value.trim();
+  const hours = parseInt(hoursInput.value) || 0;
+  const minutes = parseInt(minutesInput.value) || 0;
+
+  if (!text) {
+    errorDiv.textContent = 'Please enter a subtask description';
+    return;
+  }
+
+  const estimatedDuration = hours * 60 + minutes;
+
+  try {
+    await TaskManager.addSubtask(currentSubtaskTaskId, {
+      text,
+      estimatedDuration
+    });
+
+    hideSubtaskModal();
+    render();
+  } catch (error) {
+    errorDiv.textContent = 'Error adding subtask: ' + error.message;
+  }
+}
 
 // Timer control handlers
 async function handlePauseTimer() {
