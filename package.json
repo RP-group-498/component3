@@ -12,5 +12,8 @@
   },
   "devDependencies": {
     "electron": "^39.2.4"
+  },
+  "dependencies": {
+    "@miniben90/x-win": "^3.2.0"
   }
 }

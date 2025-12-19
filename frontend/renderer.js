@@ -132,8 +132,73 @@ async function init() {
     console.log('[App] TMT recalculated and chart updated');
   }, 60000); // 60 seconds
 
+  // Setup active window monitoring IPC listeners
+  setupActiveWindowListeners();
+
   // Log app started (not in spec, but useful)
   console.log('[App] Phase 1 initialized successfully');
+}
+
+// Setup active window monitoring listeners
+function setupActiveWindowListeners() {
+  // Track procrastination time
+  let procrastinationStartTime = null;
+
+  // Listen for active window updates (every 10 seconds from main process)
+  ipcRenderer.on('active-window:update', (event, data) => {
+    const { taskId, appName, isIDE, isProcrastinating, timestamp } = data;
+
+    if (isProcrastinating) {
+      // User is procrastinating
+      if (!procrastinationStartTime) {
+        procrastinationStartTime = timestamp;
+        console.log(`[Procrastination] Started: ${appName}`);
+      }
+    } else {
+      // User is working (IDE)
+      if (procrastinationStartTime) {
+        const procrastinationDuration = (timestamp - procrastinationStartTime) / 1000; // seconds
+        console.log(`[Procrastination] Ended after ${procrastinationDuration}s`);
+
+        // Update task behavioral data
+        const task = TaskManager.getTaskById(taskId);
+        if (task && window.TMTEngine) {
+          window.TMTEngine.updateBehavioralData(task, 'procrastination_detected', {
+            duration: procrastinationDuration,
+            app: appName
+          });
+          TaskManager.recalculateTMT(taskId);
+        }
+
+        procrastinationStartTime = null;
+      }
+    }
+  });
+
+  // Listen for app switches
+  ipcRenderer.on('active-window:switch', (event, data) => {
+    const { taskId, from, to, toIsIDE, timestamp } = data;
+
+    console.log(`[App Switch] ${from} -> ${to} (IDE: ${toIsIDE})`);
+
+    // Log app switch event
+    const task = TaskManager.getTaskById(taskId);
+    if (task && window.TMTEngine) {
+      window.TMTEngine.updateBehavioralData(task, 'app_switched', {
+        from,
+        to,
+        toIsIDE
+      });
+
+      // Increment app background events count
+      if (!toIsIDE) {
+        task.appBackgroundEvents = (task.appBackgroundEvents || 0) + 1;
+        TaskManager.saveTasks();
+      }
+
+      TaskManager.recalculateTMT(taskId);
+    }
+  });
 }
 
 // Wire up all event handlers

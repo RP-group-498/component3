@@ -408,6 +408,12 @@ async function startTask(taskId) {
     });
   }
 
+  // Notify main process to start active window monitoring
+  if (typeof require !== 'undefined') {
+    const { ipcRenderer } = require('electron');
+    ipcRenderer.send('task:started', taskId);
+  }
+
   console.log('[TaskManager] Started task:', taskId);
   return task;
 }
@@ -459,6 +465,12 @@ async function pauseTask(taskId) {
     });
   }
 
+  // Notify main process to stop active window monitoring
+  if (typeof require !== 'undefined') {
+    const { ipcRenderer } = require('electron');
+    ipcRenderer.send('task:paused', taskId);
+  }
+
   console.log('[TaskManager] Paused task:', taskId, `(${sessionDuration}m)`);
   return task;
 }
@@ -488,6 +500,12 @@ async function completeTask(taskId) {
       total_duration: task.actualTimeSpent,
       estimated_duration: task.estimatedDuration
     });
+  }
+
+  // Notify main process
+  if (typeof require !== 'undefined') {
+    const { ipcRenderer } = require('electron');
+    ipcRenderer.send('task:completed', taskId);
   }
 
   console.log('[TaskManager] Completed task:', taskId);

@@ -1,8 +1,53 @@
 const { app, BrowserWindow, ipcMain, Notification, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
+const getActiveWindow = require('@miniben90/x-win');
 
 let tray = null;
 let mainWindow = null;
+
+// Active window monitoring
+let activeWindowMonitor = null;
+let isTaskInProgress = false;
+let currentTaskId = null;
+let lastActiveApp = null;
+
+// List of IDE identifiers (lowercase for matching)
+const IDE_IDENTIFIERS = [
+  'visual studio code',
+  'vscode',
+  'code',
+  'intellij',
+  'pycharm',
+  'webstorm',
+  'phpstorm',
+  'rider',
+  'goland',
+  'clion',
+  'datagrip',
+  'rubymine',
+  'appcode',
+  'android studio',
+  'eclipse',
+  'netbeans',
+  'sublime text',
+  'atom',
+  'vim',
+  'neovim',
+  'emacs',
+  'xcode',
+  'qt creator',
+  'notepad++',
+  'brackets',
+  'geany',
+  'kate',
+  'gedit',
+  'nano',
+  'terminal', // Terminal can be for coding
+  'iterm',
+  'hyper',
+  'alacritty',
+  'warp'
+];
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -181,7 +226,117 @@ ipcMain.on('timer:stop', () => {
   }
 });
 
+// --- Active Window Monitoring for Procrastination Detection ----------------
+
+/**
+ * Check if an app is an IDE
+ */
+function isIDE(appName) {
+  if (!appName) return false;
+  const lowerName = appName.toLowerCase();
+  return IDE_IDENTIFIERS.some(ide => lowerName.includes(ide));
+}
+
+/**
+ * Start monitoring active window
+ */
+function startActiveWindowMonitoring(taskId) {
+  console.log(`[ActiveWindow] Starting monitoring for task: ${taskId}`);
+
+  currentTaskId = taskId;
+  isTaskInProgress = true;
+  lastActiveApp = null;
+
+  // Stop existing monitor if any
+  if (activeWindowMonitor) {
+    clearInterval(activeWindowMonitor);
+  }
+
+  // Check active window every 10 seconds
+  activeWindowMonitor = setInterval(async () => {
+    try {
+      const activeWin = await getActiveWindow();
+
+      if (!activeWin || !isTaskInProgress) {
+        return;
+      }
+
+      const appName = activeWin.owner?.name || activeWin.title || '';
+      const isCurrentlyIDE = isIDE(appName);
+
+      // Send activity update to renderer
+      if (mainWindow && mainWindow.webContents) {
+        mainWindow.webContents.send('active-window:update', {
+          taskId: currentTaskId,
+          appName: appName,
+          isIDE: isCurrentlyIDE,
+          isProcrastinating: !isCurrentlyIDE,
+          timestamp: Date.now()
+        });
+      }
+
+      // Log app switches
+      if (lastActiveApp && lastActiveApp !== appName) {
+        console.log(`[ActiveWindow] Switched: ${lastActiveApp} -> ${appName} (IDE: ${isCurrentlyIDE})`);
+
+        if (mainWindow && mainWindow.webContents) {
+          mainWindow.webContents.send('active-window:switch', {
+            taskId: currentTaskId,
+            from: lastActiveApp,
+            to: appName,
+            toIsIDE: isCurrentlyIDE,
+            timestamp: Date.now()
+          });
+        }
+      }
+
+      lastActiveApp = appName;
+
+    } catch (error) {
+      console.error('[ActiveWindow] Error getting active window:', error);
+    }
+  }, 10000); // Check every 10 seconds
+}
+
+/**
+ * Stop monitoring active window
+ */
+function stopActiveWindowMonitoring() {
+  console.log('[ActiveWindow] Stopping monitoring');
+
+  isTaskInProgress = false;
+  currentTaskId = null;
+  lastActiveApp = null;
+
+  if (activeWindowMonitor) {
+    clearInterval(activeWindowMonitor);
+    activeWindowMonitor = null;
+  }
+}
+
+// IPC handlers for task status changes
+ipcMain.on('task:started', (event, taskId) => {
+  console.log(`[Task] Started: ${taskId}`);
+  startActiveWindowMonitoring(taskId);
+});
+
+ipcMain.on('task:paused', (event, taskId) => {
+  console.log(`[Task] Paused: ${taskId}`);
+  stopActiveWindowMonitoring();
+});
+
+ipcMain.on('task:stopped', (event, taskId) => {
+  console.log(`[Task] Stopped: ${taskId}`);
+  stopActiveWindowMonitoring();
+});
+
+ipcMain.on('task:completed', (event, taskId) => {
+  console.log(`[Task] Completed: ${taskId}`);
+  stopActiveWindowMonitoring();
+});
+
 app.on('window-all-closed', () => {
+  stopActiveWindowMonitoring();
   if (process.platform !== 'darwin') app.quit();
 });
 
