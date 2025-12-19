@@ -1,8 +1,11 @@
-const { app, BrowserWindow, ipcMain, Notification } = require('electron');
+const { app, BrowserWindow, ipcMain, Notification, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
 
+let tray = null;
+let mainWindow = null;
+
 function createWindow() {
-  const win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 900,
     height: 700,
     webPreferences: {
@@ -11,10 +14,55 @@ function createWindow() {
     },
   });
 
-  win.loadFile(path.join(__dirname, 'index.html'));
+  mainWindow.loadFile(path.join(__dirname, 'frontend', 'index.html'));
 }
 
-app.whenReady().then(createWindow);
+function createTray() {
+  // Create a simple 16x16 transparent icon for the tray
+  const icon = nativeImage.createEmpty();
+  tray = new Tray(icon);
+
+  // Set initial tooltip
+  tray.setToolTip('Focus - No active timer');
+
+  // Create context menu
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Show App',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+        }
+      }
+    },
+    { type: 'separator' },
+    {
+      label: 'Quit',
+      click: () => {
+        app.quit();
+      }
+    }
+  ]);
+
+  tray.setContextMenu(contextMenu);
+
+  // Click tray to show window
+  tray.on('click', () => {
+    if (mainWindow) {
+      if (mainWindow.isVisible()) {
+        mainWindow.focus();
+      } else {
+        mainWindow.show();
+      }
+    }
+  });
+}
+
+app.whenReady().then(() => {
+  createWindow();
+  createTray();
+});
 
 // --- Notification service in main process ---------------------------------
 let tasksForNotify = [];
@@ -88,6 +136,48 @@ ipcMain.on('notify:tasks', (event, tasks) => {
     if (tasksForNotify.length) startMainNotifier(); else stopMainNotifier();
   } catch (e) {
     console.warn('notify:tasks error', e);
+  }
+});
+
+// --- Timer tray updates ---------------------------------------------------
+ipcMain.on('timer:update', (event, data) => {
+  try {
+    if (!tray) return;
+
+    const { minutes, seconds, isActive, isBreak, taskName } = data;
+
+    if (!isActive) {
+      // No active timer
+      tray.setTitle('');
+      tray.setToolTip('Focus - No active timer');
+      return;
+    }
+
+    // Format time as MM:SS
+    const timeDisplay = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    const mode = isBreak ? '☕ Break' : '🎯 Focus';
+
+    // For macOS: Show in menu bar
+    if (process.platform === 'darwin') {
+      tray.setTitle(`${mode} ${timeDisplay}`);
+    }
+
+    // Tooltip for all platforms (shows on hover in Windows/Linux)
+    const tooltip = `${mode}: ${timeDisplay}${taskName ? `\n${taskName}` : ''}`;
+    tray.setToolTip(tooltip);
+
+  } catch (e) {
+    console.warn('timer:update error', e);
+  }
+});
+
+ipcMain.on('timer:stop', () => {
+  try {
+    if (!tray) return;
+    tray.setTitle('');
+    tray.setToolTip('Focus - No active timer');
+  } catch (e) {
+    console.warn('timer:stop error', e);
   }
 });
 

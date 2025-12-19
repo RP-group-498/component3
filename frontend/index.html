@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Focus</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <div class="container">
+    <h1>Focus</h1>
+
+    <div class="controls-row">
+      <div class="actions">
+        <button id="addBtn">Add task</button>
+      </div>
+    </div>
+
+    <!-- Modal popup for task details -->
+    <div id="taskModal" class="modal" role="dialog" aria-hidden="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-panel" role="document">
+        <header class="modal-header">
+          <h2 class="modal-title">New Task</h2>
+          <button id="cancelBtn" class="ghost" aria-label="Close">✕</button>
+        </header>
+
+        <div class="modal-body">
+          <label class="field">
+            <span>Task</span>
+            <input id="modalTaskName" type="text" placeholder="Task name" />
+            <div id="nameError" class="field-error"></div>
+          </label>
+
+          <div class="input-row compact">
+            <label class="field small">
+              <span>Date</span>
+              <input id="deadlineDate" type="date" required />
+              <div id="dateError" class="field-error"></div>
+            </label>
+            <label class="field small">
+              <span>Time</span>
+              <input id="deadlineTime" type="time" required />
+              <div id="timeError" class="field-error"></div>
+            </label>
+            <label class="field small">
+              <span>Category</span>
+              <select id="category" required>
+                <option value="personal">Personal</option>
+                <option value="uni">Uni</option>
+                <option value="work">Work</option>
+              </select>
+              <div id="categoryError" class="field-error"></div>
+            </label>
+          </div>
+
+          <div class="input-row compact">
+            <label class="field small">
+              <span>Est. Hours</span>
+              <input id="durationHours" type="number" min="0" max="100" value="0" placeholder="0" />
+            </label>
+            <label class="field small">
+              <span>Est. Minutes</span>
+              <input id="durationMinutes" type="number" min="0" max="59" value="0" placeholder="0" />
+            </label>
+            <div class="field small"></div>
+          </div>
+
+          <div class="tmt-info">
+            <p class="tmt-notice">📊 TMT variables (Expectancy, Value, Impulsiveness, Delay) are automatically calculated from your behavior patterns.</p>
+          </div>
+        </div>
+
+        <footer class="modal-footer">
+          <div id="formError" class="field-error"></div>
+          <button id="createBtn" class="primary" disabled>Create</button>
+        </footer>
+      </div>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <ul id="taskList" class="task-list"></ul>
+
+  <!-- Motivation Chart -->
+  <div class="chart-section">
+    <div class="chart-header">
+      <h2>📈 Motivation Trends</h2>
+      <div class="chart-stats">
+        <div class="stat-item">
+          <span class="stat-label">Avg Motivation:</span>
+          <span id="avgMotivation" class="stat-value">-</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Trend:</span>
+          <span id="motivationTrend" class="stat-value">-</span>
+        </div>
+      </div>
+    </div>
+    <div class="period-selector">
+      <button class="period-btn" data-period="5m">5m</button>
+      <button class="period-btn" data-period="1h">1h</button>
+      <button class="period-btn" data-period="6h">6h</button>
+      <button class="period-btn active" data-period="1d">1D</button>
+      <button class="period-btn" data-period="3d">3D</button>
+      <button class="period-btn" data-period="1w">1W</button>
+      <button class="period-btn" data-period="1M">1M</button>
+      <button class="period-btn" data-period="max">MAX</button>
+    </div>
+    <div class="chart-container">
+      <canvas id="motivationCanvas"></canvas>
+    </div>
+  </div>
+
+  <!-- Focus Timer UI -->
+  <div id="timerContainer" class="timer-container">
+    <div class="timer-panel">
+      <div class="timer-header">
+        <div class="timer-task-name" id="timerTaskName">Task Name</div>
+        <button id="closeTimerBtn" class="ghost" aria-label="Close Timer">✕</button>
+      </div>
+      <div class="timer-body">
+        <div class="timer-status" id="timerStatus">Focus Session</div>
+        <div class="timer-display" id="timerMinutes">25:00</div>
+        <div class="timer-progress-bar">
+          <div class="timer-progress-fill" id="timerProgress"></div>
+        </div>
+      </div>
+      <div class="timer-controls">
+        <button id="pauseTimerBtn" class="timer-btn">Pause</button>
+        <button id="resumeTimerBtn" class="timer-btn" style="display:none;">Resume</button>
+        <button id="stopTimerBtn" class="timer-btn secondary">Stop</button>
+        <button id="skipBreakBtn" class="timer-btn" style="display:none;">Skip Break</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">Tasks persist in localStorage.</div>
+  </div>
+
+  <!-- Load modules -->
+  <script src="modules/utils.js"></script>
+  <script src="modules/eventLogger.js"></script>
+  <script src="modules/tmtEngine.js"></script>
+  <script src="modules/taskManager.js"></script>
+  <script src="modules/focusTimer.js"></script>
+  <script src="modules/uiManager.js"></script>
+  <script src="modules/motivationChart.js"></script>
+  <script src="renderer.js"></script>
+</body>
+
+</html>

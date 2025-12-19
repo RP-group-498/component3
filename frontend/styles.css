@@ -119,9 +119,95 @@ h1{margin:0 0 20px;font-size:28px}
 .metric-bar-bg{width:100%;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden}
 .metric-bar-fill{height:100%;border-radius:3px;transition:width 0.3s,background 0.3s}
 
-.task-actions{display:flex;gap:8px;align-items:flex-start}
+.task-actions{display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap}
 .small-btn{background:#f3f4f6;border:0;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:13px;transition:background 0.2s}
 .small-btn:hover{background:#e5e7eb}
 .small-btn.delete{background:#ffecec;color:#b91c1c}
 .small-btn.delete:hover{background:#fecaca}
+
+/* Action Buttons */
+.action-btn{background:#f3f4f6;border:0;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.2s}
+.action-btn:hover{transform:translateY(-1px)}
+.start-btn{background:#10b981;color:#fff}
+.start-btn:hover{background:#059669}
+.pause-btn{background:#f59e0b;color:#fff}
+.pause-btn:hover{background:#d97706}
+.focus-btn{background:#8b5cf6;color:#fff}
+.focus-btn:hover{background:#7c3aed}
+.edit-btn{background:#3b82f6;color:#fff}
+.edit-btn:hover{background:#2563eb}
+.delete-btn{background:#ef4444;color:#fff}
+.delete-btn:hover{background:#dc2626}
+
+/* Status Badges */
+.status-badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:0.5px;margin-left:6px}
+.status-pending{background:#e5e7eb;color:#6b7280}
+.status-started{background:#dbeafe;color:#2563eb;animation:pulse-glow 2s infinite}
+.status-paused{background:#fef3c7;color:#d97706}
+.status-completed{background:#d1fae5;color:#059669}
+.status-abandoned{background:#fee2e2;color:#dc2626}
+
+@keyframes pulse-glow{0%,100%{opacity:1}50%{opacity:0.8}}
+
+/* Active Task Highlighting */
+.task-item.active{border:2px solid #3b82f6;background:#eff6ff;box-shadow:0 4px 12px rgba(59,130,246,0.15)}
+
+/* Time Tracking Display */
+.time-tracking{font-weight:600;color:#059669}
+
+/* Empty State */
+.empty-state{text-align:center;padding:40px 20px;color:var(--muted);font-size:15px}
+
+/* Focus Timer UI */
+.timer-container{position:fixed;bottom:20px;right:20px;background:#fff;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.2);padding:20px;width:320px;z-index:50;display:none;transition:all 0.3s}
+.timer-container.active{display:block;animation:slideIn 0.3s}
+
+@keyframes slideIn{from{transform:translateY(100px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+.timer-panel{display:flex;flex-direction:column;gap:16px}
+
+.timer-header{display:flex;align-items:center;justify-content:space-between}
+.timer-task-name{font-size:14px;font-weight:600;color:#111;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.timer-body{display:flex;flex-direction:column;align-items:center;gap:12px}
+.timer-status{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+.timer-display{font-size:48px;font-weight:700;font-family:'SF Mono',Monaco,Consolas,monospace;color:#111}
+
+.timer-progress-bar{width:100%;height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden}
+.timer-progress-fill{height:100%;background:linear-gradient(90deg,#3b82f6,#8b5cf6);transition:width 0.5s linear}
+
+.timer-controls{display:flex;gap:8px;justify-content:center}
+.timer-btn{flex:1;background:#3b82f6;color:#fff;border:0;padding:10px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;transition:all 0.2s}
+.timer-btn:hover{background:#2563eb;transform:translateY(-1px)}
+.timer-btn.secondary{background:#6b7280}
+.timer-btn.secondary:hover{background:#4b5563}
+
+/* Metric Bar Updates */
+.metric-bar{display:flex;align-items:center;gap:8px}
+.metric-bar-bg{flex:1}
+.metric-value{font-size:12px;font-weight:700;color:#374151;min-width:32px;text-align:right}
+
+/* TMT Info Notice */
+.tmt-info{background:#f0f9ff;border:1px solid#bfdbfe;border-radius:8px;padding:12px;margin:12px 0}
+.tmt-notice{margin:0;font-size:13px;color:#1e40af;line-height:1.5}
+
+/* Motivation Chart */
+.chart-section{background:var(--card);border-radius:12px;padding:24px;margin-top:24px;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.chart-header h2{margin:0;font-size:18px;font-weight:600;color:#111}
+.chart-stats{display:flex;gap:20px}
+.stat-item{display:flex;align-items:center;gap:6px}
+.stat-label{font-size:12px;color:var(--muted);font-weight:500}
+.stat-value{font-size:14px;font-weight:700;color:var(--accent);padding:4px 8px;background:#eff6ff;border-radius:4px}
+
+/* Period Selector - Google Style */
+.period-selector{display:flex;gap:4px;margin-bottom:16px;padding:4px;background:#f8f9fa;border-radius:8px;width:fit-content}
+.period-btn{background:transparent;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;color:#5f6368;cursor:pointer;transition:all 0.2s;letter-spacing:0.3px}
+.period-btn:hover{background:#e8eaed;color:#202124}
+.period-btn.active{background:#fff;color:#1a73e8;box-shadow:0 1px 3px rgba(0,0,0,0.12)}
+
+/* Chart Container - Google Style */
+.chart-container{position:relative;width:100%;height:350px;background:#fff;border:none;border-radius:8px;overflow:hidden}
+#motivationCanvas{display:block;width:100%;height:100%;cursor:crosshair}
+
 .footer{margin-top:16px;color:var(--muted);font-size:13px}
