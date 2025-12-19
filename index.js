@@ -49,6 +49,248 @@ const IDE_IDENTIFIERS = [
   'warp'
 ];
 
+// Browser identifiers (lowercase)
+const BROWSER_IDENTIFIERS = [
+  'chrome',
+  'firefox',
+  'safari',
+  'edge',
+  'brave',
+  'opera',
+  'vivaldi',
+  'arc'
+];
+
+// Academic/Productive websites (domains and keywords)
+const ACADEMIC_SITES = [
+  'github.com',
+  'gitlab.com',
+  'bitbucket.org',
+  'stackoverflow.com',
+  'stackexchange.com',
+  'hackerrank.com',
+  'leetcode.com',
+  'codewars.com',
+  'codepen.io',
+  'codesandbox.io',
+  'replit.com',
+  'kaggle.com',
+  'coursera.org',
+  'edx.org',
+  'udemy.com',
+  'udacity.com',
+  'khanacademy.org',
+  'brilliant.org',
+  'freecodecamp.org',
+  'w3schools.com',
+  'mdn.mozilla.org',
+  'developer.mozilla.org',
+  'docs.python.org',
+  'nodejs.org',
+  'react.dev',
+  'vuejs.org',
+  'angular.io',
+  'tensorflow.org',
+  'pytorch.org',
+  'arxiv.org',
+  'scholar.google',
+  'researchgate.net',
+  'medium.com', // Can be both, but often technical
+  'dev.to',
+  'hashnode.com',
+  'notion.so',
+  'overleaf.com',
+  'latex',
+  'jupyter',
+  'colab.research.google',
+  'aws.amazon.com',
+  'cloud.google.com',
+  'azure.microsoft.com',
+  'documentation',
+  'docs.',
+  'api.',
+  'tutorial',
+  'learning'
+];
+
+// Non-academic/Procrastinating websites
+const NON_ACADEMIC_SITES = [
+  'youtube.com',
+  'facebook.com',
+  'instagram.com',
+  'twitter.com',
+  'x.com',
+  'tiktok.com',
+  'reddit.com',
+  'twitch.tv',
+  'netflix.com',
+  'hulu.com',
+  'disneyplus.com',
+  'primevideo.com',
+  'spotify.com',
+  'soundcloud.com',
+  'pinterest.com',
+  'tumblr.com',
+  'snapchat.com',
+  'whatsapp.com',
+  'telegram.org',
+  'discord.com', // Can be work-related but often social
+  'slack.com', // Can be work-related
+  'gaming',
+  'game',
+  'play',
+  'news',
+  'sports',
+  'entertainment',
+  'shopping',
+  'amazon.com',
+  'ebay.com',
+  'etsy.com'
+];
+
+// Neutral websites (could be either productive or not)
+const NEUTRAL_SITES = [
+  'google.com',
+  'bing.com',
+  'duckduckgo.com',
+  'search',
+  'mail',
+  'gmail.com',
+  'outlook.com',
+  'yahoo.com',
+  'calendar',
+  'drive.google.com',
+  'dropbox.com',
+  'onedrive.com',
+  'zoom.us',
+  'meet.google.com',
+  'teams.microsoft.com',
+  'webex.com'
+];
+
+/**
+ * Check if an app is a browser
+ */
+function isBrowser(appName) {
+  if (!appName) return false;
+  const lowerName = appName.toLowerCase();
+  return BROWSER_IDENTIFIERS.some(browser => lowerName.includes(browser));
+}
+
+/**
+ * Extract domain/keywords from window title
+ * Browser titles usually contain: "Page Title - Domain - Browser Name"
+ */
+function extractDomainFromTitle(title) {
+  if (!title) return '';
+
+  const lowerTitle = title.toLowerCase();
+
+  // Try to extract domain patterns
+  // Common patterns: "Title - github.com", "github.com - Chrome", "GitHub - Chrome"
+  const domainPatterns = [
+    /https?:\/\/([^\s/]+)/i,  // Full URL
+    /([a-z0-9-]+\.[a-z]{2,})/i  // Domain pattern
+  ];
+
+  for (const pattern of domainPatterns) {
+    const match = lowerTitle.match(pattern);
+    if (match) {
+      return match[1] || match[0];
+    }
+  }
+
+  return lowerTitle;
+}
+
+/**
+ * Classify website as academic, non-academic, or neutral
+ * Returns: { type: 'academic' | 'non-academic' | 'neutral', confidence: number }
+ */
+function classifyWebsite(title) {
+  const domain = extractDomainFromTitle(title);
+
+  // Check academic sites
+  for (const site of ACADEMIC_SITES) {
+    if (domain.includes(site)) {
+      return { type: 'academic', confidence: 1.0, site };
+    }
+  }
+
+  // Check non-academic sites
+  for (const site of NON_ACADEMIC_SITES) {
+    if (domain.includes(site)) {
+      return { type: 'non-academic', confidence: 1.0, site };
+    }
+  }
+
+  // Check neutral sites
+  for (const site of NEUTRAL_SITES) {
+    if (domain.includes(site)) {
+      return { type: 'neutral', confidence: 0.5, site };
+    }
+  }
+
+  // Unknown - assume neutral
+  return { type: 'neutral', confidence: 0.3, site: domain };
+}
+
+/**
+ * Determine if user is working or procrastinating
+ * Returns: { isWorking: boolean, category: string, detail: string }
+ */
+function analyzeActivity(appName, windowTitle) {
+  const isIDEApp = isIDE(appName);
+  const isBrowserApp = isBrowser(appName);
+
+  if (isIDEApp) {
+    // Using an IDE - definitely working
+    return {
+      isWorking: true,
+      category: 'ide',
+      detail: appName,
+      confidence: 1.0
+    };
+  }
+
+  if (isBrowserApp) {
+    // Using browser - check the website
+    const classification = classifyWebsite(windowTitle);
+
+    if (classification.type === 'academic') {
+      return {
+        isWorking: true,
+        category: 'academic-web',
+        detail: classification.site,
+        confidence: classification.confidence
+      };
+    } else if (classification.type === 'non-academic') {
+      return {
+        isWorking: false,
+        category: 'procrastinating-web',
+        detail: classification.site,
+        confidence: classification.confidence
+      };
+    } else {
+      // Neutral - give benefit of doubt (could be research)
+      return {
+        isWorking: true,
+        category: 'neutral-web',
+        detail: classification.site,
+        confidence: classification.confidence
+      };
+    }
+  }
+
+  // Other apps - assume non-productive
+  return {
+    isWorking: false,
+    category: 'other-app',
+    detail: appName,
+    confidence: 0.8
+  };
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 900,
@@ -261,36 +503,54 @@ function startActiveWindowMonitoring(taskId) {
         return;
       }
 
-      const appName = activeWin.owner?.name || activeWin.title || '';
-      const isCurrentlyIDE = isIDE(appName);
+      const appName = activeWin.owner?.name || '';
+      const windowTitle = activeWin.title || '';
+
+      // Analyze activity (IDE, academic website, or procrastinating)
+      const analysis = analyzeActivity(appName, windowTitle);
 
       // Send activity update to renderer
       if (mainWindow && mainWindow.webContents) {
         mainWindow.webContents.send('active-window:update', {
           taskId: currentTaskId,
           appName: appName,
-          isIDE: isCurrentlyIDE,
-          isProcrastinating: !isCurrentlyIDE,
+          windowTitle: windowTitle,
+          isWorking: analysis.isWorking,
+          category: analysis.category,
+          detail: analysis.detail,
+          confidence: analysis.confidence,
+          isProcrastinating: !analysis.isWorking,
           timestamp: Date.now()
         });
       }
 
       // Log app switches
-      if (lastActiveApp && lastActiveApp !== appName) {
-        console.log(`[ActiveWindow] Switched: ${lastActiveApp} -> ${appName} (IDE: ${isCurrentlyIDE})`);
+      const currentIdentifier = `${appName}|${windowTitle}`;
+      if (lastActiveApp && lastActiveApp !== currentIdentifier) {
+        const logMsg = analysis.category === 'academic-web'
+          ? `${lastActiveApp.split('|')[0]} -> ${analysis.detail} (Academic)`
+          : analysis.category === 'procrastinating-web'
+          ? `${lastActiveApp.split('|')[0]} -> ${analysis.detail} (Procrastinating)`
+          : analysis.category === 'ide'
+          ? `${lastActiveApp.split('|')[0]} -> ${appName} (IDE)`
+          : `${lastActiveApp.split('|')[0]} -> ${appName} (${analysis.category})`;
+
+        console.log(`[ActiveWindow] ${logMsg}`);
 
         if (mainWindow && mainWindow.webContents) {
           mainWindow.webContents.send('active-window:switch', {
             taskId: currentTaskId,
-            from: lastActiveApp,
+            from: lastActiveApp.split('|')[0],
             to: appName,
-            toIsIDE: isCurrentlyIDE,
+            toDetail: analysis.detail,
+            toCategory: analysis.category,
+            isWorking: analysis.isWorking,
             timestamp: Date.now()
           });
         }
       }
 
-      lastActiveApp = appName;
+      lastActiveApp = currentIdentifier;
 
     } catch (error) {
       console.error('[ActiveWindow] Error getting active window:', error);

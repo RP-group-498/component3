@@ -143,55 +143,85 @@ async function init() {
 function setupActiveWindowListeners() {
   // Track procrastination time
   let procrastinationStartTime = null;
+  let currentCategory = null;
 
   // Listen for active window updates (every 10 seconds from main process)
   ipcRenderer.on('active-window:update', (event, data) => {
-    const { taskId, appName, isIDE, isProcrastinating, timestamp } = data;
+    const { taskId, appName, windowTitle, isWorking, category, detail, confidence, isProcrastinating, timestamp } = data;
 
     if (isProcrastinating) {
       // User is procrastinating
       if (!procrastinationStartTime) {
         procrastinationStartTime = timestamp;
-        console.log(`[Procrastination] Started: ${appName}`);
+        currentCategory = category;
+
+        const logMsg = category === 'procrastinating-web'
+          ? `Procrastination started: ${detail} (Website)`
+          : `Procrastination started: ${appName}`;
+        console.log(`[Procrastination] ${logMsg}`);
       }
     } else {
-      // User is working (IDE)
+      // User is working (IDE or academic website)
       if (procrastinationStartTime) {
         const procrastinationDuration = (timestamp - procrastinationStartTime) / 1000; // seconds
-        console.log(`[Procrastination] Ended after ${procrastinationDuration}s`);
+
+        const logMsg = category === 'academic-web'
+          ? `Resumed work: ${detail} (Academic Website)`
+          : category === 'ide'
+          ? `Resumed work: ${appName} (IDE)`
+          : `Resumed work: ${detail}`;
+
+        console.log(`[Procrastination] Ended after ${procrastinationDuration}s - ${logMsg}`);
 
         // Update task behavioral data
         const task = TaskManager.getTaskById(taskId);
         if (task && window.TMTEngine) {
           window.TMTEngine.updateBehavioralData(task, 'procrastination_detected', {
             duration: procrastinationDuration,
-            app: appName
+            category: currentCategory,
+            detail: detail
           });
           TaskManager.recalculateTMT(taskId);
         }
 
         procrastinationStartTime = null;
+        currentCategory = null;
+      }
+
+      // Log productive activity
+      if (category === 'academic-web') {
+        console.log(`[Academic Work] ${detail} (confidence: ${(confidence * 100).toFixed(0)}%)`);
       }
     }
   });
 
   // Listen for app switches
   ipcRenderer.on('active-window:switch', (event, data) => {
-    const { taskId, from, to, toIsIDE, timestamp } = data;
+    const { taskId, from, to, toDetail, toCategory, isWorking, timestamp } = data;
 
-    console.log(`[App Switch] ${from} -> ${to} (IDE: ${toIsIDE})`);
+    const categoryLabels = {
+      'ide': 'IDE',
+      'academic-web': 'Academic Website',
+      'procrastinating-web': 'Procrastinating',
+      'neutral-web': 'Neutral Website',
+      'other-app': 'Other App'
+    };
+
+    const label = categoryLabels[toCategory] || toCategory;
+    console.log(`[App Switch] ${from} -> ${toDetail || to} (${label})`);
 
     // Log app switch event
     const task = TaskManager.getTaskById(taskId);
     if (task && window.TMTEngine) {
       window.TMTEngine.updateBehavioralData(task, 'app_switched', {
         from,
-        to,
-        toIsIDE
+        to: toDetail || to,
+        category: toCategory,
+        isWorking
       });
 
-      // Increment app background events count
-      if (!toIsIDE) {
+      // Increment app background events count for non-productive switches
+      if (!isWorking) {
         task.appBackgroundEvents = (task.appBackgroundEvents || 0) + 1;
         TaskManager.saveTasks();
       }
