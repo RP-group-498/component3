@@ -2,8 +2,6 @@
  * UI Manager Module
  * - Task list rendering with status badges
  * - Modal management (create/edit)
- * - Focus timer UI updates
- * - Real-time timer display
  * - Visual indicators
  */
 
@@ -101,7 +99,7 @@ function createTaskElement(task, index) {
   if (task.deadlineDate) {
     const deadline = document.createElement('div');
     deadline.className = 'detail-item';
-    deadline.textContent = `📅 ${task.deadlineDate}${task.deadlineTime ? ' ' + task.deadlineTime : ''}`;
+    deadline.innerHTML = `<i data-lucide="calendar"></i> ${task.deadlineDate}${task.deadlineTime ? ' ' + task.deadlineTime : ''}`;
     details.appendChild(deadline);
   }
 
@@ -207,9 +205,9 @@ function createMetricsDisplay(task) {
   const metrics = document.createElement('div');
   metrics.className = 'detail-item metrics-display';
 
-  const expectancyBar = createMetricBar('Expectancy', task.expectancy, '💪');
-  const valueBar = createMetricBar('Value', task.value, '⭐');
-  const impulsivityBar = createMetricBar('Impulsivity', task.impulsivity, '🎯', true);
+  const expectancyBar = createMetricBar('Expectancy', task.expectancy, 'zap');
+  const valueBar = createMetricBar('Value', task.value, 'star');
+  const impulsivityBar = createMetricBar('Impulsivity', task.impulsivity, 'target', true);
 
   metrics.appendChild(expectancyBar);
   metrics.appendChild(valueBar);
@@ -232,7 +230,7 @@ function createMetricBar(label, value, icon, inverse = false) {
 
   const labelDiv = document.createElement('div');
   labelDiv.className = 'metric-label';
-  labelDiv.textContent = `${icon} ${label}`;
+  labelDiv.innerHTML = `<i data-lucide="${icon}"></i> ${label}`;
 
   const barBg = document.createElement('div');
   barBg.className = 'metric-bar-bg';
@@ -292,7 +290,7 @@ function createSubtasksSection(task) {
     : `${minutes}m`;
 
   titleDiv.innerHTML = `
-    <span class="subtasks-label">📋 Subtasks</span>
+    <span class="subtasks-label"><i data-lucide="list-checks"></i> Subtasks</span>
     <span class="subtasks-time">Est. Time: ${timeStr}</span>
   `;
 
@@ -417,19 +415,6 @@ function createTaskActions(task, index) {
       }
     });
     actions.appendChild(pauseBtn);
-  }
-
-  // Focus button (if not completed/abandoned)
-  if (task.status !== 'completed' && task.status !== 'abandoned') {
-    const focusBtn = document.createElement('button');
-    focusBtn.className = 'action-btn focus-btn';
-    focusBtn.textContent = '🎯 Focus';
-    focusBtn.addEventListener('click', () => {
-      if (window.handleFocusMode) {
-        window.handleFocusMode(task.id);
-      }
-    });
-    actions.appendChild(focusBtn);
   }
 
   // Edit button
@@ -570,64 +555,6 @@ function resetTaskForm() {
 }
 
 /**
- * Update timer display
- * @param {number} minutes - Minutes remaining
- * @param {number} seconds - Seconds remaining
- * @param {Object} timerState - Timer state object
- */
-function updateTimerDisplay(minutes, seconds, timerState) {
-  if (!elements.timerMinutes) return;
-
-  const formatted = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-
-  if (elements.timerMinutes) {
-    elements.timerMinutes.textContent = formatted;
-  }
-
-  if (elements.timerStatus && timerState) {
-    const statusText = timerState.isBreak ? 'Break Time' : 'Focus Session';
-    elements.timerStatus.textContent = statusText;
-  }
-
-  // Update progress bar
-  if (elements.timerProgress && timerState) {
-    const totalSeconds = timerState.duration * 60;
-    const elapsed = totalSeconds - timerState.remainingTime;
-    const progress = (elapsed / totalSeconds) * 100;
-    elements.timerProgress.style.width = `${progress}%`;
-  }
-}
-
-/**
- * Show timer UI
- * @param {string} taskId - Task ID
- */
-function showTimerUI(taskId) {
-  if (!elements.timerContainer) return;
-
-  elements.timerContainer.classList.add('active');
-
-  // Set task info
-  if (window.TaskManager) {
-    const task = window.TaskManager.getTaskById(taskId);
-    if (task && elements.timerTaskName) {
-      elements.timerTaskName.textContent = task.text;
-    }
-  }
-}
-
-/**
- * Hide timer UI
- */
-function hideTimerUI() {
-  if (!elements.timerContainer) {
-    return;
-  }
-
-  elements.timerContainer.classList.remove('active');
-}
-
-/**
  * Format duration (minutes to human-readable)
  * @param {number} minutes - Minutes
  * @returns {string} Formatted duration
@@ -650,9 +577,6 @@ if (typeof window !== 'undefined') {
     renderTaskList,
     showCreateModal,
     showEditModal,
-    hideTaskModal,
-    updateTimerDisplay,
-    showTimerUI,
-    hideTimerUI
+    hideTaskModal
   };
 }

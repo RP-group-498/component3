@@ -94,6 +94,11 @@ function migrateLegacyTask(task) {
     task.totalReminders = 0;
   }
 
+  // Add activity log for detailed tracking of what user was doing
+  if (!task.activityLog) {
+    task.activityLog = [];
+  }
+
   // TMT values - keep if exist (from old manual input), otherwise set defaults
   if (task.expectancy === undefined) {
     task.expectancy = 5;
@@ -296,7 +301,10 @@ async function createTask(taskData) {
     firstStartTime: null,
     appBackgroundEvents: 0,
     dismissedReminders: 0,
-    totalReminders: 0
+    totalReminders: 0,
+
+    // Activity log for detailed tracking (timestamp, appName, windowTitle, category, detail)
+    activityLog: []
   };
 
   // Calculate initial delay from deadline
@@ -691,6 +699,36 @@ function calculateEstimatedDuration(task) {
 }
 
 /**
+ * Log activity to task's activity log
+ * @param {string} taskId - Task ID
+ * @param {Object} activityData - Activity data {appName, windowTitle, category, detail, isWorking}
+ */
+function logActivity(taskId, activityData) {
+  const task = getTaskById(taskId);
+  if (!task || task.status !== 'started') return;
+
+  if (!task.activityLog) {
+    task.activityLog = [];
+  }
+
+  // Add activity entry with timestamp
+  task.activityLog.push({
+    timestamp: Date.now(),
+    appName: activityData.appName || '-',
+    windowTitle: activityData.windowTitle || '-',
+    category: activityData.category || 'other',
+    detail: activityData.detail || activityData.appName || '-',
+    isWorking: activityData.isWorking !== undefined ? activityData.isWorking : true
+  });
+
+  // Keep only last 24 hours of activity logs to prevent excessive data
+  const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+  task.activityLog = task.activityLog.filter(log => log.timestamp >= oneDayAgo);
+
+  saveTasks();
+}
+
+/**
  * Add a subtask to a task
  * @param {string} taskId - Task ID
  * @param {Object} subtaskData - Subtask data {text, estimatedDuration}
@@ -789,7 +827,22 @@ async function toggleSubtask(taskId, subtaskId) {
 
   subtask.done = !subtask.done;
 
+  // Update TMT behavioral data based on subtask completion
+  if (window.TMTEngine) {
+    window.TMTEngine.updateBehavioralData(
+      task,
+      subtask.done ? 'subtask_completed' : 'subtask_uncompleted',
+      {
+        subtask_id: subtaskId,
+        task_id: taskId
+      }
+    );
+  }
+
   saveTasks();
+
+  // Recalculate TMT values after subtask toggle
+  recalculateTMT(taskId);
 
   // Log event
   if (window.EventLogger) {
@@ -799,7 +852,7 @@ async function toggleSubtask(taskId, subtaskId) {
     });
   }
 
-  console.log(`[TaskManager] Subtask ${subtask.done ? 'completed' : 'uncompleted'}:`, subtask.text);
+  console.log(`[TaskManager] Subtask ${subtask.done ? 'completed' : 'uncompleted'}:`, subtask.text, '- TMT recalculated');
   return task;
 }
 
@@ -874,6 +927,8 @@ if (typeof window !== 'undefined') {
     deleteSubtask,
     toggleSubtask,
     updateSubtask,
-    calculateEstimatedDuration
+    calculateEstimatedDuration,
+    // Activity tracking
+    logActivity
   };
 }

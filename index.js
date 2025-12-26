@@ -426,48 +426,6 @@ ipcMain.on('notify:tasks', (event, tasks) => {
   }
 });
 
-// --- Timer tray updates ---------------------------------------------------
-ipcMain.on('timer:update', (event, data) => {
-  try {
-    if (!tray) return;
-
-    const { minutes, seconds, isActive, isBreak, taskName } = data;
-
-    if (!isActive) {
-      // No active timer
-      tray.setTitle('');
-      tray.setToolTip('Focus - No active timer');
-      return;
-    }
-
-    // Format time as MM:SS
-    const timeDisplay = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    const mode = isBreak ? '☕ Break' : '🎯 Focus';
-
-    // For macOS: Show in menu bar
-    if (process.platform === 'darwin') {
-      tray.setTitle(`${mode} ${timeDisplay}`);
-    }
-
-    // Tooltip for all platforms (shows on hover in Windows/Linux)
-    const tooltip = `${mode}: ${timeDisplay}${taskName ? `\n${taskName}` : ''}`;
-    tray.setToolTip(tooltip);
-
-  } catch (e) {
-    console.warn('timer:update error', e);
-  }
-});
-
-ipcMain.on('timer:stop', () => {
-  try {
-    if (!tray) return;
-    tray.setTitle('');
-    tray.setToolTip('Focus - No active timer');
-  } catch (e) {
-    console.warn('timer:stop error', e);
-  }
-});
-
 // --- Active Window Monitoring for Procrastination Detection ----------------
 
 /**

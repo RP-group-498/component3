@@ -12,7 +12,7 @@
  * @returns {number} Expectancy score (0.0 to 1.0)
  */
 function calculateExpectancy(task, allTasks) {
-  // Factor 1: Completion History (50% weight)
+  // Factor 1: Completion History (40% weight)
   const tasksInCategory = allTasks.filter(t => t.category === task.category);
   const completedInCategory = tasksInCategory.filter(t => t.status === 'completed').length;
   const attemptedInCategory = tasksInCategory.filter(t =>
@@ -23,12 +23,12 @@ function calculateExpectancy(task, allTasks) {
     ? completedInCategory / attemptedInCategory
     : 0.5; // Neutral default
 
-  // Factor 2: Retry Behavior (30% weight)
+  // Factor 2: Retry Behavior (25% weight)
   // Lower retry count = higher expectancy
   const retryCount = task.retryCount || 0;
   const retryBehavior = 1 / (1 + retryCount);
 
-  // Factor 3: Task Size Confidence (20% weight)
+  // Factor 3: Task Size Confidence (15% weight)
   // How close is this task's estimated duration to average?
   let taskSizeConfidence = 0.5; // Default neutral
   if (task.estimatedDuration && tasksInCategory.length > 0) {
@@ -47,11 +47,29 @@ function calculateExpectancy(task, allTasks) {
     }
   }
 
+  // Factor 4: Subtask Progress (20% weight)
+  // Visible progress through completed subtasks increases expectancy
+  let subtaskProgress = 0.5; // Default neutral (no subtasks)
+  if (task.subtasks && task.subtasks.length > 0) {
+    const completedSubtasks = task.subtasks.filter(st => st.done).length;
+    const totalSubtasks = task.subtasks.length;
+    subtaskProgress = completedSubtasks / totalSubtasks;
+
+    // Boost: Even partial progress (>0%) increases expectancy
+    // 0% → 0.3, 25% → 0.5, 50% → 0.7, 75% → 0.85, 100% → 1.0
+    if (completedSubtasks > 0) {
+      subtaskProgress = 0.3 + (0.7 * subtaskProgress);
+    } else {
+      subtaskProgress = 0.3; // Some subtasks defined but none done yet
+    }
+  }
+
   // Weighted formula
   const expectancy =
-    (0.5 * completionHistory) +
-    (0.3 * retryBehavior) +
-    (0.2 * taskSizeConfidence);
+    (0.40 * completionHistory) +
+    (0.25 * retryBehavior) +
+    (0.15 * taskSizeConfidence) +
+    (0.20 * subtaskProgress);
 
   return clamp(expectancy, 0, 1);
 }
@@ -63,7 +81,7 @@ function calculateExpectancy(task, allTasks) {
  * @returns {number} Value score (0.0 to 1.0)
  */
 function calculateValue(task) {
-  // Factor 1: Time Investment (35% weight)
+  // Factor 1: Time Investment (30% weight)
   let timeInvestment = 0.5; // Default neutral
   if (task.estimatedDuration && task.actualTimeSpent > 0) {
     const ratio = task.actualTimeSpent / task.estimatedDuration;
@@ -73,7 +91,7 @@ function calculateValue(task) {
     timeInvestment = Math.min(task.actualTimeSpent / 60, 1.0); // 60min+ = max
   }
 
-  // Factor 2: Voluntary Engagement (30% weight)
+  // Factor 2: Voluntary Engagement (25% weight)
   // How quickly did they start after creating the task?
   const hoursDelayedBeforeStarting = task.hoursDelayedBeforeStarting || 0;
   const voluntaryEngagement = 1 / (1 + hoursDelayedBeforeStarting);
@@ -85,17 +103,37 @@ function calculateValue(task) {
   const totalWorkTime = task.actualTimeSpent || 1;
   const productiveTimeRatio = Math.min((ideTime + academicWebTime) / totalWorkTime, 1.0);
 
-  // Factor 4: Commitment Signal (15% weight)
+  // Factor 4: Commitment Signal (10% weight)
   // Fewer postponements = higher commitment
   const postponementCount = task.postponementCount || 0;
   const commitmentSignal = Math.max(0, 1 - (postponementCount / 10));
 
+  // Factor 5: Subtask Engagement (15% weight)
+  // Completing subtasks shows engagement and provides sense of accomplishment
+  let subtaskEngagement = 0.5; // Default neutral (no subtasks)
+  if (task.subtasks && task.subtasks.length > 0) {
+    const completedSubtasks = task.subtasks.filter(st => st.done).length;
+    const totalSubtasks = task.subtasks.length;
+
+    // Even completing one subtask shows engagement
+    if (completedSubtasks > 0) {
+      // Base engagement from any completion
+      const baseEngagement = 0.4;
+      // Additional value from completion ratio
+      const progressValue = 0.6 * (completedSubtasks / totalSubtasks);
+      subtaskEngagement = baseEngagement + progressValue;
+    } else {
+      subtaskEngagement = 0.2; // Defined subtasks but none completed yet
+    }
+  }
+
   // Weighted formula
   const value =
-    (0.35 * timeInvestment) +
-    (0.30 * voluntaryEngagement) +
+    (0.30 * timeInvestment) +
+    (0.25 * voluntaryEngagement) +
     (0.20 * productiveTimeRatio) +
-    (0.15 * commitmentSignal);
+    (0.10 * commitmentSignal) +
+    (0.15 * subtaskEngagement);
 
   return clamp(value, 0, 1);
 }
@@ -182,18 +220,28 @@ function calculateDelay(task) {
   const hoursUntilDeadline = msUntilDeadline / (1000 * 60 * 60);
   const daysUntilDeadline = hoursUntilDeadline / 24;
 
+  // Handle overdue tasks differently - HIGH delay = demotivating effect
+  if (daysUntilDeadline < 0) {
+    // Task is overdue - the longer overdue, the MORE demotivating
+    // We return a HIGH delay value that increases as task gets more overdue
+    // This increases the denominator in the motivation formula, reducing motivation
+    const daysOverdue = Math.abs(daysUntilDeadline);
+
+    // Exponential growth of delay penalty
+    // Just overdue (<1 day): delay starts at 0.7
+    // 2 days overdue: delay ~0.85
+    // 5+ days overdue: delay approaches 1.0 (maximum demotivation)
+    const overdueDelay = 0.7 + 0.3 * (1.0 - Math.exp(-daysOverdue / 2));
+
+    return clamp(overdueDelay, 0.7, 1.0);
+  }
+
   // Factor 1: Deadline Distance (normalized to 30 days max)
   const deadlineDistance = Math.min(daysUntilDeadline / 30, 1.0);
 
   // Factor 2: Urgency Factor
-  let urgencyFactor;
-  if (daysUntilDeadline < 0) {
-    // Overdue
-    urgencyFactor = 0.0;
-  } else {
-    // Within 7 days = increasing urgency
-    urgencyFactor = 1 - Math.min(hoursUntilDeadline / (7 * 24), 1.0);
-  }
+  // Within 7 days = increasing urgency
+  const urgencyFactor = 1 - Math.min(hoursUntilDeadline / (7 * 24), 1.0);
 
   // Combined formula
   const delay = deadlineDistance * (1 - urgencyFactor * 0.5);
@@ -340,6 +388,32 @@ function updateBehavioralData(task, event, data = {}) {
 
     case 'deadline_postponed':
       task.postponementCount = (task.postponementCount || 0) + 1;
+      break;
+
+    case 'subtask_completed':
+      // Track subtask completion - indicates progress and engagement
+      // This should boost Expectancy (seeing progress) and Value (sense of accomplishment)
+      task.subtasksCompleted = (task.subtasksCompleted || 0) + 1;
+      task.lastSubtaskCompletedTime = Date.now();
+
+      // Calculate completion percentage
+      if (task.subtasks && task.subtasks.length > 0) {
+        const completedCount = task.subtasks.filter(st => st.done).length;
+        task.subtaskCompletionRatio = completedCount / task.subtasks.length;
+      }
+      break;
+
+    case 'subtask_uncompleted':
+      // User unchecked a subtask - might indicate uncertainty or task difficulty
+      if (task.subtasksCompleted > 0) {
+        task.subtasksCompleted -= 1;
+      }
+
+      // Recalculate completion percentage
+      if (task.subtasks && task.subtasks.length > 0) {
+        const completedCount = task.subtasks.filter(st => st.done).length;
+        task.subtaskCompletionRatio = completedCount / task.subtasks.length;
+      }
       break;
   }
 

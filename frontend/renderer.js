@@ -19,24 +19,13 @@ const deadlineDate = document.getElementById('deadlineDate');
 const deadlineTime = document.getElementById('deadlineTime');
 const category = document.getElementById('category');
 
-// Timer Elements
-const timerContainer = document.getElementById('timerContainer');
-const timerTaskName = document.getElementById('timerTaskName');
-const timerMinutes = document.getElementById('timerMinutes');
-const timerStatus = document.getElementById('timerStatus');
-const timerProgress = document.getElementById('timerProgress');
-const pauseTimerBtn = document.getElementById('pauseTimerBtn');
-const resumeTimerBtn = document.getElementById('resumeTimerBtn');
-const stopTimerBtn = document.getElementById('stopTimerBtn');
-const skipBreakBtn = document.getElementById('skipBreakBtn');
-const closeTimerBtn = document.getElementById('closeTimerBtn');
-
 // Chart Elements
 const motivationCanvas = document.getElementById('motivationCanvas');
 const avgMotivationEl = document.getElementById('avgMotivation');
 const motivationTrendEl = document.getElementById('motivationTrend');
 
 let currentEditingTaskId = null;
+let currentTaskFilter = 'all'; // Task filter state
 
 // Initialize Application
 async function init() {
@@ -48,9 +37,6 @@ async function init() {
     console.error('[App] Failed to initialize event logger');
   }
 
-  // Initialize FocusTimer
-  await FocusTimer.initTimer();
-
   // Initialize UIManager
   UIManager.initUI({
     taskList,
@@ -60,12 +46,7 @@ async function init() {
     modalTaskName,
     deadlineDate,
     deadlineTime,
-    category,
-    timerContainer,
-    timerTaskName,
-    timerMinutes,
-    timerStatus,
-    timerProgress
+    category
   });
 
   // Load tasks
@@ -89,9 +70,6 @@ async function init() {
   // Wire up event handlers
   wireUpEventHandlers();
 
-  // Setup focus timer callbacks
-  setupFocusTimer();
-
   // Initialize motivation chart
   if (motivationCanvas) {
     MotivationChart.initChart(motivationCanvas);
@@ -112,6 +90,33 @@ async function init() {
       updateChart();
     });
   });
+
+  // Setup task filter tabs
+  const tabButtons = document.querySelectorAll('.tab-btn');
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      // Remove active class from all buttons
+      tabButtons.forEach(b => b.classList.remove('active'));
+      // Add active class to clicked button
+      btn.classList.add('active');
+      // Update filter
+      currentTaskFilter = btn.dataset.filter;
+      render();
+    });
+  });
+
+  // Setup CSV download button
+  const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+  if (downloadCsvBtn) {
+    downloadCsvBtn.addEventListener('click', () => {
+      const tasks = TaskManager.getAllTasks();
+      if (tasks.length === 0) {
+        alert('No tasks available to download. Create some tasks first!');
+        return;
+      }
+      MotivationChart.downloadCSV(tasks);
+    });
+  }
 
   // Setup real-time TMT recalculation and chart polling (every 60 seconds)
   setInterval(() => {
@@ -151,6 +156,15 @@ function setupActiveWindowListeners() {
   // Listen for active window updates (every 10 seconds from main process)
   ipcRenderer.on('active-window:update', (event, data) => {
     const { taskId, appName, windowTitle, isWorking, category, detail, confidence, isProcrastinating, timestamp } = data;
+
+    // Log detailed activity to task's activity log
+    TaskManager.logActivity(taskId, {
+      appName,
+      windowTitle,
+      category,
+      detail,
+      isWorking
+    });
 
     if (isProcrastinating) {
       // User is procrastinating
@@ -333,17 +347,6 @@ function wireUpEventHandlers() {
     }
   });
 
-  // Timer controls
-  pauseTimerBtn.addEventListener('click', handlePauseTimer);
-  resumeTimerBtn.addEventListener('click', handleResumeTimer);
-  stopTimerBtn.addEventListener('click', handleStopTimer);
-  skipBreakBtn.addEventListener('click', handleSkipBreak);
-  closeTimerBtn.addEventListener('click', () => {
-    UIManager.hideTimerUI();
-    FocusTimer.stopTimer();
-    ipcRenderer.send('timer:stop');
-  });
-
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && taskModal.classList.contains('open')) {
@@ -353,81 +356,31 @@ function wireUpEventHandlers() {
   });
 }
 
-// Setup focus timer callbacks
-function setupFocusTimer() {
-  FocusTimer.onTimerTick((minutes, seconds) => {
-    const state = FocusTimer.getTimerState();
-    UIManager.updateTimerDisplay(minutes, seconds, state);
-
-    // Update button visibility based on pause state
-    if (state.isPaused) {
-      pauseTimerBtn.style.display = 'none';
-      resumeTimerBtn.style.display = 'block';
-    } else {
-      pauseTimerBtn.style.display = 'block';
-      resumeTimerBtn.style.display = 'none';
-    }
-
-    // Show/hide skip break button
-    if (state.isBreak) {
-      skipBreakBtn.style.display = 'block';
-    } else {
-      skipBreakBtn.style.display = 'none';
-    }
-
-    // Send timer update to system tray
-    const task = state.taskId ? TaskManager.getTaskById(state.taskId) : null;
-    ipcRenderer.send('timer:update', {
-      minutes,
-      seconds,
-      isActive: state.isActive,
-      isBreak: state.isBreak,
-      taskName: task ? task.text : null
-    });
-
-    // Update task UI to show real-time time
-    render();
-  });
-
-  FocusTimer.onTimerComplete(() => {
-    // Work session completed, show break prompt
-    const breakDuration = 5; // Will be retrieved from settings
-    alert(`Great work! Time for a ${breakDuration} minute break.`);
-  });
-
-  FocusTimer.onBreakComplete(async () => {
-    // Break completed - ask user if they want to continue
-    const continueSession = confirm('Break is over! Start another focus session?');
-
-    if (continueSession) {
-      // Get the current task from timer state
-      const timerState = FocusTimer.getTimerState();
-      const taskId = timerState.taskId;
-
-      if (taskId) {
-        // Start a new focus session for the same task
-        await FocusTimer.startFocusSession(taskId, 25);
-        render();
-      } else {
-        // No task ID found, close timer
-        UIManager.hideTimerUI();
-        ipcRenderer.send('timer:stop');
-        render();
-      }
-    } else {
-      // User chose not to continue, close timer
-      UIManager.hideTimerUI();
-      ipcRenderer.send('timer:stop');
-      render();
-    }
-  });
-}
-
 // Render task list
 function render() {
-  const tasks = TaskManager.getAllTasks();
+  let tasks = TaskManager.getAllTasks();
+
+  // Filter tasks based on selected tab
+  if (currentTaskFilter !== 'all') {
+    tasks = tasks.filter(task => {
+      if (currentTaskFilter === 'pending') {
+        return task.status === 'pending';
+      } else if (currentTaskFilter === 'started') {
+        return task.status === 'started' || task.status === 'paused';
+      } else if (currentTaskFilter === 'completed') {
+        return task.status === 'completed';
+      }
+      return true;
+    });
+  }
+
   UIManager.renderTaskList(tasks);
   updateChart();
+
+  // Reinitialize Lucide icons after rendering
+  if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+  }
 }
 
 // Update motivation chart
@@ -441,16 +394,23 @@ function updateChart() {
     if (avgMotivationEl) {
       const avg = MotivationChart.getAverageMotivation(tasks);
       avgMotivationEl.textContent = avg > 0 ? avg : '-';
+
+      // Toggle red theme based on motivation
+      if (avg > 0 && avg <= 3) {
+        document.body.classList.add('red-theme');
+      } else {
+        document.body.classList.remove('red-theme');
+      }
     }
 
     if (motivationTrendEl) {
       const trend = MotivationChart.getMotivationTrend(tasks);
-      const trendEmoji = {
-        increasing: '📈 Rising',
-        decreasing: '📉 Falling',
-        stable: '➡️ Stable'
+      const trendIcons = {
+        increasing: '<i data-lucide="trending-up"></i> Rising',
+        decreasing: '<i data-lucide="trending-down"></i> Falling',
+        stable: '<i data-lucide="minus"></i> Stable'
       };
-      motivationTrendEl.textContent = tasks.length >= 2 ? trendEmoji[trend] : '-';
+      motivationTrendEl.innerHTML = tasks.length >= 2 ? trendIcons[trend] : '-';
 
       // Color code the trend
       const trendColors = {
@@ -459,6 +419,11 @@ function updateChart() {
         stable: '#f59e0b'
       };
       motivationTrendEl.style.color = trendColors[trend] || '#6b7280';
+
+      // Reinitialize icons for trend display
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+      }
     }
   }
 }
@@ -561,22 +526,6 @@ window.handleStartTask = async function(taskId) {
 
 window.handlePauseTask = async function(taskId) {
   await TaskManager.pauseTask(taskId);
-  render();
-};
-
-window.handleFocusMode = async function(taskId) {
-  // Start the task if not already started
-  const task = TaskManager.getTaskById(taskId);
-  if (task.status !== 'started') {
-    await TaskManager.startTask(taskId);
-  }
-
-  // Start focus timer
-  await FocusTimer.startFocusSession(taskId, 25);
-
-  // Show timer UI
-  UIManager.showTimerUI(taskId);
-
   render();
 };
 
@@ -684,64 +633,14 @@ async function handleSubtaskSubmit() {
   }
 }
 
-// Timer control handlers
-async function handlePauseTimer() {
-  FocusTimer.pauseTimer();
-
-  const state = FocusTimer.getTimerState();
-  if (state.taskId) {
-    await TaskManager.pauseTask(state.taskId);
-  }
-
-  pauseTimerBtn.style.display = 'none';
-  resumeTimerBtn.style.display = 'block';
-  render();
-}
-
-async function handleResumeTimer() {
-  FocusTimer.resumeTimer();
-
-  const state = FocusTimer.getTimerState();
-  if (state.taskId) {
-    await TaskManager.startTask(state.taskId);
-  }
-
-  pauseTimerBtn.style.display = 'block';
-  resumeTimerBtn.style.display = 'none';
-  render();
-}
-
-async function handleStopTimer() {
-  const confirmed = confirm('Stop the focus session?');
-  if (!confirmed) return;
-
-  const state = FocusTimer.getTimerState();
-  if (state.taskId) {
-    await TaskManager.pauseTask(state.taskId);
-  }
-
-  await FocusTimer.stopTimer();
-  UIManager.hideTimerUI();
-  ipcRenderer.send('timer:stop');
-  render();
-}
-
-async function handleSkipBreak() {
-  await FocusTimer.skipBreak();
-  UIManager.hideTimerUI();
-  ipcRenderer.send('timer:stop');
-  render();
-}
-
 // Initialize on load
 document.addEventListener('DOMContentLoaded', init);
 
 // Handle app closing with active session
 window.addEventListener('beforeunload', (e) => {
   const activeTask = TaskManager.getActiveTask();
-  const timerState = FocusTimer.getTimerState();
 
-  if (activeTask || timerState.isActive) {
+  if (activeTask) {
     e.preventDefault();
     e.returnValue = 'You have an active session. Progress will be saved.';
     return e.returnValue;

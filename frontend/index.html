@@ -6,15 +6,67 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Focus</title>
   <link rel="stylesheet" href="styles.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 
 <body>
   <div class="container">
     <h1>Focus</h1>
 
-    <div class="controls-row">
-      <div class="actions">
-        <button id="addBtn">Add task</button>
+    <!-- Motivation Chart -->
+    <div class="chart-section">
+      <div class="chart-header">
+        <h2><i data-lucide="trending-up"></i> Motivation Trends</h2>
+        <div class="chart-stats">
+          <div class="stat-item">
+            <span class="stat-label">Avg Motivation:</span>
+            <span id="avgMotivation" class="stat-value">-</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Trend:</span>
+            <span id="motivationTrend" class="stat-value">-</span>
+          </div>
+          <button id="downloadCsvBtn" class="download-btn" title="Download CSV for selected period">
+            <i data-lucide="download"></i> Download CSV
+          </button>
+        </div>
+      </div>
+      <div class="period-selector">
+        <button class="period-btn" data-period="5m">5m</button>
+        <button class="period-btn" data-period="1h">1h</button>
+        <button class="period-btn" data-period="6h">6h</button>
+        <button class="period-btn active" data-period="1d">1D</button>
+        <button class="period-btn" data-period="3d">3D</button>
+        <button class="period-btn" data-period="1w">1W</button>
+        <button class="period-btn" data-period="1M">1M</button>
+        <button class="period-btn" data-period="max">MAX</button>
+      </div>
+      <div class="chart-container">
+        <canvas id="motivationCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Tasks Section -->
+    <div class="tasks-section">
+      <div class="tasks-header">
+        <h2><i data-lucide="list-todo"></i> Tasks</h2>
+        <button id="addBtn"><i data-lucide="plus"></i> Add Task</button>
+      </div>
+
+      <!-- Task Filter Tabs -->
+      <div class="task-tabs">
+        <button class="tab-btn active" data-filter="all">
+          <i data-lucide="list"></i> All
+        </button>
+        <button class="tab-btn" data-filter="pending">
+          <i data-lucide="clock"></i> Pending
+        </button>
+        <button class="tab-btn" data-filter="started">
+          <i data-lucide="play-circle"></i> In Progress
+        </button>
+        <button class="tab-btn" data-filter="completed">
+          <i data-lucide="check-circle"></i> Completed
+        </button>
       </div>
     </div>
 
@@ -24,7 +76,7 @@
       <div class="modal-panel" role="document">
         <header class="modal-header">
           <h2 class="modal-title">New Task</h2>
-          <button id="cancelBtn" class="ghost" aria-label="Close">✕</button>
+          <button id="cancelBtn" class="ghost" aria-label="Close"><i data-lucide="x"></i></button>
         </header>
 
         <div class="modal-body">
@@ -57,7 +109,7 @@
           </div>
 
           <div class="tmt-info">
-            <p class="tmt-notice">📊 TMT variables (Expectancy, Value, Impulsiveness, Delay) are automatically calculated from your behavior patterns.</p>
+            <p class="tmt-notice"><i data-lucide="bar-chart-2"></i> TMT variables (Expectancy, Value, Impulsiveness, Delay) are automatically calculated from your behavior patterns.</p>
           </div>
         </div>
 
@@ -74,7 +126,7 @@
     <div class="modal-panel subtask-modal" role="document">
       <header class="modal-header">
         <h2 class="modal-title">Add Subtask</h2>
-        <button id="subtaskCancelBtn" class="ghost" aria-label="Close">✕</button>
+        <button id="subtaskCancelBtn" class="ghost" aria-label="Close"><i data-lucide="x"></i></button>
       </header>
 
       <div class="modal-body">
@@ -103,60 +155,7 @@
     </div>
   </div>
 
-  <ul id="taskList" class="task-list"></ul>
-
-  <!-- Motivation Chart -->
-  <div class="chart-section">
-    <div class="chart-header">
-      <h2>📈 Motivation Trends</h2>
-      <div class="chart-stats">
-        <div class="stat-item">
-          <span class="stat-label">Avg Motivation:</span>
-          <span id="avgMotivation" class="stat-value">-</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-label">Trend:</span>
-          <span id="motivationTrend" class="stat-value">-</span>
-        </div>
-      </div>
-    </div>
-    <div class="period-selector">
-      <button class="period-btn" data-period="5m">5m</button>
-      <button class="period-btn" data-period="1h">1h</button>
-      <button class="period-btn" data-period="6h">6h</button>
-      <button class="period-btn active" data-period="1d">1D</button>
-      <button class="period-btn" data-period="3d">3D</button>
-      <button class="period-btn" data-period="1w">1W</button>
-      <button class="period-btn" data-period="1M">1M</button>
-      <button class="period-btn" data-period="max">MAX</button>
-    </div>
-    <div class="chart-container">
-      <canvas id="motivationCanvas"></canvas>
-    </div>
-  </div>
-
-  <!-- Focus Timer UI -->
-  <div id="timerContainer" class="timer-container">
-    <div class="timer-panel">
-      <div class="timer-header">
-        <div class="timer-task-name" id="timerTaskName">Task Name</div>
-        <button id="closeTimerBtn" class="ghost" aria-label="Close Timer">✕</button>
-      </div>
-      <div class="timer-body">
-        <div class="timer-status" id="timerStatus">Focus Session</div>
-        <div class="timer-display" id="timerMinutes">25:00</div>
-        <div class="timer-progress-bar">
-          <div class="timer-progress-fill" id="timerProgress"></div>
-        </div>
-      </div>
-      <div class="timer-controls">
-        <button id="pauseTimerBtn" class="timer-btn">Pause</button>
-        <button id="resumeTimerBtn" class="timer-btn" style="display:none;">Resume</button>
-        <button id="stopTimerBtn" class="timer-btn secondary">Stop</button>
-        <button id="skipBreakBtn" class="timer-btn" style="display:none;">Skip Break</button>
-      </div>
-    </div>
-  </div>
+    <ul id="taskList" class="task-list"></ul>
 
   <div class="footer">Tasks persist in localStorage.</div>
   </div>
@@ -166,10 +165,16 @@
   <script src="modules/eventLogger.js"></script>
   <script src="modules/tmtEngine.js"></script>
   <script src="modules/taskManager.js"></script>
-  <script src="modules/focusTimer.js"></script>
   <script src="modules/uiManager.js"></script>
   <script src="modules/motivationChart.js"></script>
   <script src="renderer.js"></script>
+
+  <!-- Initialize Lucide Icons -->
+  <script>
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    }
+  </script>
 </body>
 
 </html>

@@ -3,9 +3,6 @@
 ## Overview
 Enhanced the Temporal Motivation Theory (TMT) engine to better utilize behavioral data from the intelligent activity monitoring system.
 
-## Date
-December 19, 2025
-
 ## Changes Made
 
 ### 1. Enhanced Impulsiveness Calculation

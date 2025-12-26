@@ -133,7 +133,7 @@ function renderChart(tasks) {
  * Draw empty state when no tasks
  */
 function renderEmptyState(width, height) {
-  ctx.fillStyle = '#9ca3af';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
   ctx.font = '14px Inter, system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText('No tasks yet. Create tasks to see motivation trends!', width / 2, height / 2);
@@ -143,7 +143,7 @@ function renderEmptyState(width, height) {
  * Draw axes
  */
 function drawAxes(dataPoints, padding, chartWidth, chartHeight) {
-  ctx.strokeStyle = '#e5e7eb';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
   ctx.lineWidth = 2;
 
   // Y-axis
@@ -162,17 +162,27 @@ function drawAxes(dataPoints, padding, chartWidth, chartHeight) {
   ctx.save();
   ctx.translate(15, padding.top + chartHeight / 2);
   ctx.rotate(-Math.PI / 2);
-  ctx.fillStyle = '#374151';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
   ctx.font = '12px Inter, system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText('Motivation Score', 0, 0);
   ctx.restore();
 
-  // X-axis label
-  ctx.fillStyle = '#374151';
+  // X-axis label (show selected period)
+  const periodLabels = {
+    '5m': 'Last 5 Minutes',
+    '1h': 'Last Hour',
+    '6h': 'Last 6 Hours',
+    '1d': 'Last 24 Hours',
+    '3d': 'Last 3 Days',
+    '1w': 'Last Week',
+    '1M': 'Last Month',
+    'max': 'All Time'
+  };
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
   ctx.font = '12px Inter, system-ui, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('Time (1 min intervals)', padding.left + chartWidth / 2, padding.top + chartHeight + 50);
+  ctx.fillText(periodLabels[selectedPeriod] || 'Time', padding.left + chartWidth / 2, padding.top + chartHeight + 50);
 
   // X-axis time labels
   if (dataPoints && dataPoints.length > 0) {
@@ -183,18 +193,34 @@ function drawAxes(dataPoints, padding, chartWidth, chartHeight) {
     // Calculate number of time labels to show (aim for ~5-8 labels)
     const numLabels = Math.min(8, Math.max(3, Math.floor(chartWidth / 80)));
 
+    // Determine time format based on period
+    const isLongPeriod = ['3d', '1w', '1M', 'max'].includes(selectedPeriod);
+    const periodMs = PERIODS[selectedPeriod] || PERIODS['1d'];
+    const isVeryLongPeriod = periodMs > 7 * 24 * 60 * 60 * 1000; // More than a week
+
     for (let i = 0; i <= numLabels; i++) {
       const ratio = i / numLabels;
       const timestamp = oldestDate + (timeRange * ratio);
       const x = padding.left + (ratio * chartWidth);
       const y = padding.top + chartHeight;
 
-      // Format time
+      // Format time based on period length
       const date = new Date(timestamp);
-      const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+      let timeStr;
+
+      if (isVeryLongPeriod) {
+        // Show date for very long periods
+        timeStr = `${date.getMonth() + 1}/${date.getDate()}`;
+      } else if (isLongPeriod) {
+        // Show date and time for long periods
+        timeStr = `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:00`;
+      } else {
+        // Show just time for short periods
+        timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+      }
 
       // Draw tick mark
-      ctx.strokeStyle = '#9ca3af';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(x, y);
@@ -202,7 +228,7 @@ function drawAxes(dataPoints, padding, chartWidth, chartHeight) {
       ctx.stroke();
 
       // Draw label
-      ctx.fillStyle = '#6b7280';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
       ctx.font = '10px Inter, system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(timeStr, x, y + 18);
@@ -214,7 +240,7 @@ function drawAxes(dataPoints, padding, chartWidth, chartHeight) {
  * Draw grid lines
  */
 function drawGrid(dataPoints, padding, chartWidth, chartHeight) {
-  ctx.strokeStyle = '#f3f4f6';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
   ctx.lineWidth = 1;
 
   // Horizontal grid lines (for motivation scores 0-10)
@@ -227,7 +253,7 @@ function drawGrid(dataPoints, padding, chartWidth, chartHeight) {
     ctx.stroke();
 
     // Y-axis labels
-    ctx.fillStyle = '#6b7280';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
     ctx.font = '11px Inter, system-ui, sans-serif';
     ctx.textAlign = 'right';
     ctx.fillText(i.toString(), padding.left - 10, y + 4);
@@ -237,7 +263,7 @@ function drawGrid(dataPoints, padding, chartWidth, chartHeight) {
   if (dataPoints && dataPoints.length > 0) {
     const numLabels = Math.min(8, Math.max(3, Math.floor(chartWidth / 80)));
 
-    ctx.strokeStyle = '#f3f4f6';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
     ctx.lineWidth = 1;
 
     for (let i = 0; i <= numLabels; i++) {
@@ -271,8 +297,8 @@ function drawMotivationLine(dataPoints, padding, chartWidth, chartHeight) {
   // Draw gradient fill under the line
   if (points.length > 0) {
     const gradient = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartHeight);
-    gradient.addColorStop(0, 'rgba(59, 130, 246, 0.2)');
-    gradient.addColorStop(1, 'rgba(59, 130, 246, 0.01)');
+    gradient.addColorStop(0, 'rgba(96, 165, 250, 0.3)');
+    gradient.addColorStop(1, 'rgba(96, 165, 250, 0.01)');
 
     ctx.fillStyle = gradient;
     ctx.beginPath();
@@ -298,7 +324,7 @@ function drawMotivationLine(dataPoints, padding, chartWidth, chartHeight) {
 
   // Draw the line
   if (points.length > 0) {
-    ctx.strokeStyle = '#1a73e8'; // Google blue
+    ctx.strokeStyle = '#60a5fa'; // Brighter blue
     ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -407,11 +433,11 @@ function drawTrendLine(dataPoints, padding, chartWidth, chartHeight) {
  */
 function drawLegend(padding, width) {
   const legendItems = [
-    { label: 'Motivation', color: '#3b82f6', style: 'line' },
-    { label: 'Trend', color: '#8b5cf6', style: 'dashed' },
-    { label: 'Completed', color: '#10b981', style: 'circle' },
-    { label: 'In Progress', color: '#3b82f6', style: 'circle' },
-    { label: 'Pending', color: '#9ca3af', style: 'circle' }
+    { label: 'Motivation', color: '#60a5fa', style: 'line' },
+    { label: 'Trend', color: '#a78bfa', style: 'dashed' },
+    { label: 'Completed', color: '#34d399', style: 'circle' },
+    { label: 'In Progress', color: '#60a5fa', style: 'circle' },
+    { label: 'Pending', color: '#d1d5db', style: 'circle' }
   ];
 
   const legendX = width - 150;
@@ -441,12 +467,12 @@ function drawLegend(padding, width) {
       ctx.beginPath();
       ctx.arc(legendX + 10, y, 4, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = '#ffffff';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
       ctx.lineWidth = 2;
       ctx.stroke();
     }
 
-    ctx.fillStyle = '#374151';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
     ctx.font = '11px Inter, system-ui, sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText(item.label, legendX + 25, y + 4);
@@ -517,6 +543,224 @@ function getCurrentPeriod() {
   return selectedPeriod;
 }
 
+/**
+ * Generate CSV data for download
+ * @param {Array} tasks - Array of all tasks
+ * @returns {string} CSV content
+ */
+function generateCSV(tasks) {
+  if (!tasks || tasks.length === 0) {
+    return 'No data available for the selected period';
+  }
+
+  // Get selected period
+  const periodMs = PERIODS[selectedPeriod] || PERIODS['1d'];
+  const now = Date.now();
+  const startTime = selectedPeriod === 'max'
+    ? Math.min(...tasks.map(t => t.created))
+    : now - periodMs;
+  const endTime = now;
+
+  // Generate minute-by-minute data points
+  const csvRows = [];
+  csvRows.push('Timestamp,Date,Time,Average Motivation,Active Task,Task Status,Activity,Software/Program,Window Title,Category');
+
+  // Sample every minute for the selected period
+  const minuteMs = 60 * 1000;
+  let currentTime = startTime;
+
+  while (currentTime <= endTime) {
+    const date = new Date(currentTime);
+    const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
+    const timeStr = date.toTimeString().split(' ')[0]; // HH:MM:SS
+    const timestamp = date.toISOString();
+
+    // Find which task was active at this time
+    let activeTask = null;
+    let activity = 'Idle';
+    let taskStatus = '-';
+    let category = '-';
+    let software = '-';
+    let windowTitle = '-';
+
+    for (const task of tasks) {
+      // Check if task has a session that includes this time
+      if (task.sessions && task.sessions.length > 0) {
+        for (const session of task.sessions) {
+          if (session.startTime <= currentTime && session.endTime >= currentTime) {
+            activeTask = task;
+            taskStatus = 'Working';
+            category = task.category || 'personal';
+
+            // Find the closest activity log entry to this time
+            if (task.activityLog && task.activityLog.length > 0) {
+              // Find activity log entry closest to current time (within session)
+              let closestLog = null;
+              let minDiff = Infinity;
+
+              for (const log of task.activityLog) {
+                if (log.timestamp >= session.startTime && log.timestamp <= session.endTime) {
+                  const diff = Math.abs(log.timestamp - currentTime);
+                  if (diff < minDiff && diff <= 60000) { // Within 1 minute
+                    minDiff = diff;
+                    closestLog = log;
+                  }
+                }
+              }
+
+              if (closestLog) {
+                software = closestLog.appName || closestLog.detail;
+                windowTitle = closestLog.windowTitle || '-';
+
+                // Determine activity based on log
+                if (!closestLog.isWorking) {
+                  activity = `Procrastinating`;
+                } else if (closestLog.category === 'ide') {
+                  activity = 'Working (IDE)';
+                } else if (closestLog.category === 'academic-web') {
+                  activity = `Working (${closestLog.detail})`;
+                } else {
+                  activity = 'Working on task';
+                }
+              } else {
+                activity = 'Working on task';
+              }
+            } else if (task.procrastinationLog && task.procrastinationLog.length > 0) {
+              // Fallback to procrastination log if no activity log
+              const procLog = task.procrastinationLog.find(p => {
+                const pTime = p.timestamp;
+                const pEnd = pTime + (p.duration * 60 * 1000);
+                return pTime <= currentTime && pEnd >= currentTime;
+              });
+
+              if (procLog) {
+                activity = `Procrastinating`;
+                software = procLog.detail || procLog.category;
+              } else {
+                activity = 'Working on task';
+              }
+            } else {
+              activity = 'Working on task';
+            }
+            break;
+          }
+        }
+      }
+
+      // Check if task is currently active (ongoing session)
+      if (task.status === 'started' && task.currentSessionStart) {
+        if (task.currentSessionStart <= currentTime && currentTime <= now) {
+          activeTask = task;
+          taskStatus = 'In Progress';
+          category = task.category || 'personal';
+
+          // Find the closest activity log entry for current session
+          if (task.activityLog && task.activityLog.length > 0) {
+            let closestLog = null;
+            let minDiff = Infinity;
+
+            for (const log of task.activityLog) {
+              if (log.timestamp >= task.currentSessionStart) {
+                const diff = Math.abs(log.timestamp - currentTime);
+                if (diff < minDiff && diff <= 60000) { // Within 1 minute
+                  minDiff = diff;
+                  closestLog = log;
+                }
+              }
+            }
+
+            if (closestLog) {
+              software = closestLog.appName || closestLog.detail;
+              windowTitle = closestLog.windowTitle || '-';
+
+              if (!closestLog.isWorking) {
+                activity = `Procrastinating`;
+              } else if (closestLog.category === 'ide') {
+                activity = 'Working (IDE)';
+              } else if (closestLog.category === 'academic-web') {
+                activity = `Working (${closestLog.detail})`;
+              } else {
+                activity = 'Working on task';
+              }
+            } else {
+              activity = 'Working on task';
+            }
+          } else {
+            activity = 'Working on task';
+          }
+        }
+      }
+
+      if (activeTask) break;
+    }
+
+    // Calculate average motivation at this point in time
+    let avgMotivation = 0;
+    if (tasks.length > 0) {
+      // Get tasks that existed at this time
+      const existingTasks = tasks.filter(t => t.created <= currentTime);
+
+      if (existingTasks.length > 0 && window.TMTEngine) {
+        const motivations = existingTasks.map(task => {
+          const tmt = window.TMTEngine.calculateTMT(task, tasks);
+          return tmt.motivation;
+        });
+        const sum = motivations.reduce((a, b) => a + b, 0);
+        avgMotivation = (sum / motivations.length).toFixed(2);
+      }
+    }
+
+    const taskName = activeTask ? `"${activeTask.text.replace(/"/g, '""')}"` : '-';
+
+    // Escape quotes in software and window title for CSV
+    const softwareEscaped = software.replace(/"/g, '""');
+    const windowTitleEscaped = windowTitle.replace(/"/g, '""');
+
+    csvRows.push(
+      `${timestamp},${dateStr},${timeStr},${avgMotivation},${taskName},${taskStatus},"${activity}","${softwareEscaped}","${windowTitleEscaped}",${category}`
+    );
+
+    currentTime += minuteMs;
+  }
+
+  return csvRows.join('\n');
+}
+
+/**
+ * Download CSV file
+ * @param {Array} tasks - Array of all tasks
+ */
+function downloadCSV(tasks) {
+  const csvContent = generateCSV(tasks);
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+
+  // Generate filename with period and timestamp
+  const periodLabels = {
+    '5m': '5min',
+    '1h': '1hour',
+    '6h': '6hours',
+    '1d': '1day',
+    '3d': '3days',
+    '1w': '1week',
+    '1M': '1month',
+    'max': 'all-time'
+  };
+  const periodLabel = periodLabels[selectedPeriod] || selectedPeriod;
+  const timestamp = new Date().toISOString().split('T')[0];
+  link.setAttribute('download', `motivation-data-${periodLabel}-${timestamp}.csv`);
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+
+  console.log('[MotivationChart] CSV downloaded:', periodLabel);
+}
+
 // Export API
 if (typeof window !== 'undefined') {
   window.MotivationChart = {
@@ -525,6 +769,8 @@ if (typeof window !== 'undefined') {
     getAverageMotivation,
     getMotivationTrend,
     setPeriod,
-    getCurrentPeriod
+    getCurrentPeriod,
+    generateCSV,
+    downloadCSV
   };
 }
