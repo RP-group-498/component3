@@ -389,7 +389,7 @@ function startMainNotifier() {
 
       if (diff <= NOTIFY_THRESHOLD_MS) {
         if (now - last >= NOTIFY_REPEAT_MS) {
-          showMainNotification('Focus — deadline soon', `Deadline approaching: ${t.text} — ${Math.ceil(diff/1000)}s`);
+          showMainNotification('Focus — deadline soon', `Deadline approaching: ${t.text} — ${Math.ceil(diff / 1000)}s`);
           lastNotified.set(id, now);
         }
       }
@@ -424,6 +424,10 @@ ipcMain.on('notify:tasks', (event, tasks) => {
   } catch (e) {
     console.warn('notify:tasks error', e);
   }
+});
+
+ipcMain.on('notify:intervention', (event, { title, body }) => {
+  showMainNotification(title, body);
 });
 
 // --- Active Window Monitoring for Procrastination Detection ----------------
@@ -488,10 +492,10 @@ function startActiveWindowMonitoring(taskId) {
         const logMsg = analysis.category === 'academic-web'
           ? `${lastActiveApp.split('|')[0]} -> ${analysis.detail} (Academic)`
           : analysis.category === 'procrastinating-web'
-          ? `${lastActiveApp.split('|')[0]} -> ${analysis.detail} (Procrastinating)`
-          : analysis.category === 'ide'
-          ? `${lastActiveApp.split('|')[0]} -> ${appName} (IDE)`
-          : `${lastActiveApp.split('|')[0]} -> ${appName} (${analysis.category})`;
+            ? `${lastActiveApp.split('|')[0]} -> ${analysis.detail} (Procrastinating)`
+            : analysis.category === 'ide'
+              ? `${lastActiveApp.split('|')[0]} -> ${appName} (IDE)`
+              : `${lastActiveApp.split('|')[0]} -> ${appName} (${analysis.category})`;
 
         console.log(`[ActiveWindow] ${logMsg}`);
 

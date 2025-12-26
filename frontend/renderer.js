@@ -49,6 +49,9 @@ async function init() {
     category
   });
 
+  // Initialize Intervention Manager (implicit via loading script, but good to log)
+  console.log('[App] Intervention Engine active');
+
   // Load tasks
   TaskManager.loadTasks();
 
@@ -200,8 +203,8 @@ function setupActiveWindowListeners() {
         const logMsg = category === 'academic-web'
           ? `Resumed work: ${detail} (Academic Website)`
           : category === 'ide'
-          ? `Resumed work: ${appName} (IDE)`
-          : `Resumed work: ${detail}`;
+            ? `Resumed work: ${appName} (IDE)`
+            : `Resumed work: ${detail}`;
 
         console.log(`[Procrastination] Ended after ${procrastinationDuration}s - ${logMsg}`);
 
@@ -514,22 +517,22 @@ function resetForm() {
 }
 
 // Global handlers for UI callbacks
-window.handleToggleDone = async function(index) {
+window.handleToggleDone = async function (index) {
   await TaskManager.toggleDone(index);
   render();
 };
 
-window.handleStartTask = async function(taskId) {
+window.handleStartTask = async function (taskId) {
   await TaskManager.startTask(taskId);
   render();
 };
 
-window.handlePauseTask = async function(taskId) {
+window.handlePauseTask = async function (taskId) {
   await TaskManager.pauseTask(taskId);
   render();
 };
 
-window.handleEditTask = async function(taskId) {
+window.handleEditTask = async function (taskId) {
   const task = TaskManager.getTaskById(taskId);
   if (!task) return;
 
@@ -543,7 +546,7 @@ window.handleEditTask = async function(taskId) {
   });
 };
 
-window.handleDeleteTask = async function(taskId, index) {
+window.handleDeleteTask = async function (taskId, index) {
   const task = TaskManager.getTaskById(taskId);
   if (!task) return;
 
@@ -565,17 +568,17 @@ window.handleDeleteTask = async function(taskId, index) {
 // Subtask handlers
 let currentSubtaskTaskId = null;
 
-window.handleAddSubtask = function(taskId) {
+window.handleAddSubtask = function (taskId) {
   currentSubtaskTaskId = taskId;
   showSubtaskModal();
 };
 
-window.handleToggleSubtask = async function(taskId, subtaskId) {
+window.handleToggleSubtask = async function (taskId, subtaskId) {
   await TaskManager.toggleSubtask(taskId, subtaskId);
   render();
 };
 
-window.handleDeleteSubtask = async function(taskId, subtaskId) {
+window.handleDeleteSubtask = async function (taskId, subtaskId) {
   await TaskManager.deleteSubtask(taskId, subtaskId);
   render();
 };

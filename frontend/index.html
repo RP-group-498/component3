@@ -109,7 +109,8 @@
           </div>
 
           <div class="tmt-info">
-            <p class="tmt-notice"><i data-lucide="bar-chart-2"></i> TMT variables (Expectancy, Value, Impulsiveness, Delay) are automatically calculated from your behavior patterns.</p>
+            <p class="tmt-notice"><i data-lucide="bar-chart-2"></i> TMT variables (Expectancy, Value, Impulsiveness,
+              Delay) are automatically calculated from your behavior patterns.</p>
           </div>
         </div>
 
@@ -120,50 +121,52 @@
       </div>
     </div>
 
-  <!-- Subtask Modal -->
-  <div id="subtaskModal" class="modal" role="dialog" aria-hidden="true">
-    <div class="modal-backdrop"></div>
-    <div class="modal-panel subtask-modal" role="document">
-      <header class="modal-header">
-        <h2 class="modal-title">Add Subtask</h2>
-        <button id="subtaskCancelBtn" class="ghost" aria-label="Close"><i data-lucide="x"></i></button>
-      </header>
+    <!-- Subtask Modal -->
+    <div id="subtaskModal" class="modal" role="dialog" aria-hidden="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-panel subtask-modal" role="document">
+        <header class="modal-header">
+          <h2 class="modal-title">Add Subtask</h2>
+          <button id="subtaskCancelBtn" class="ghost" aria-label="Close"><i data-lucide="x"></i></button>
+        </header>
 
-      <div class="modal-body">
-        <label class="field">
-          <span>Subtask</span>
-          <input id="subtaskText" type="text" placeholder="Subtask description" />
-          <div id="subtaskTextError" class="field-error"></div>
-        </label>
+        <div class="modal-body">
+          <label class="field">
+            <span>Subtask</span>
+            <input id="subtaskText" type="text" placeholder="Subtask description" />
+            <div id="subtaskTextError" class="field-error"></div>
+          </label>
 
-        <div class="input-row compact">
-          <label class="field small">
-            <span>Est. Hours</span>
-            <input id="subtaskHours" type="number" min="0" max="100" value="0" placeholder="0" />
-          </label>
-          <label class="field small">
-            <span>Est. Minutes</span>
-            <input id="subtaskMinutes" type="number" min="0" max="59" value="0" placeholder="0" />
-          </label>
+          <div class="input-row compact">
+            <label class="field small">
+              <span>Est. Hours</span>
+              <input id="subtaskHours" type="number" min="0" max="100" value="0" placeholder="0" />
+            </label>
+            <label class="field small">
+              <span>Est. Minutes</span>
+              <input id="subtaskMinutes" type="number" min="0" max="59" value="0" placeholder="0" />
+            </label>
+          </div>
         </div>
-      </div>
 
-      <footer class="modal-footer">
-        <div id="subtaskFormError" class="field-error"></div>
-        <button id="subtaskSaveBtn" class="primary">Add Subtask</button>
-      </footer>
+        <footer class="modal-footer">
+          <div id="subtaskFormError" class="field-error"></div>
+          <button id="subtaskSaveBtn" class="primary">Add Subtask</button>
+        </footer>
+      </div>
     </div>
-  </div>
 
     <ul id="taskList" class="task-list"></ul>
 
-  <div class="footer">Tasks persist in localStorage.</div>
+    <div class="footer">Tasks persist in localStorage.</div>
   </div>
 
   <!-- Load modules -->
   <script src="modules/utils.js"></script>
   <script src="modules/eventLogger.js"></script>
   <script src="modules/tmtEngine.js"></script>
+  <script src="modules/interventionUI.js"></script>
+  <script src="modules/interventionManager.js"></script>
   <script src="modules/taskManager.js"></script>
   <script src="modules/uiManager.js"></script>
   <script src="modules/motivationChart.js"></script>

@@ -99,6 +99,16 @@ function migrateLegacyTask(task) {
     task.activityLog = [];
   }
 
+  // Add intervention history for ML tracking
+  if (!task.interventionHistory) {
+    task.interventionHistory = [];
+  }
+
+  // Add TMT history for drop detection
+  if (!task.tmtHistory) {
+    task.tmtHistory = [];
+  }
+
   // TMT values - keep if exist (from old manual input), otherwise set defaults
   if (task.expectancy === undefined) {
     task.expectancy = 5;
@@ -128,10 +138,33 @@ function recalculateTMT(taskId) {
 
   const tmt = window.TMTEngine.calculateTMT(task, tasks);
 
+  // Store previous TMT state for drop detection
+  const oldTMT = task.tmtHistory && task.tmtHistory.length > 0
+    ? task.tmtHistory[task.tmtHistory.length - 1]
+    : null;
+
+  // Update task values
   task.expectancy = tmt.expectancy;
   task.value = tmt.value;
   task.impulsivity = tmt.impulsiveness;
   task.delay = tmt.delay;
+
+  // Store new TMT state in history (limit to last 50 entries)
+  if (!task.tmtHistory) task.tmtHistory = [];
+  task.tmtHistory.push({
+    timestamp: Date.now(),
+    ...tmt.raw,
+    motivation: tmt.motivation
+  });
+  if (task.tmtHistory.length > 50) task.tmtHistory.shift();
+
+  // Check for drops and trigger interventions
+  if (window.InterventionManager && oldTMT) {
+    window.InterventionManager.analyzeDrop(task, oldTMT, {
+      motivation: tmt.motivation,
+      raw: tmt.raw
+    });
+  }
 
   return task;
 }
@@ -304,7 +337,11 @@ async function createTask(taskData) {
     totalReminders: 0,
 
     // Activity log for detailed tracking (timestamp, appName, windowTitle, category, detail)
-    activityLog: []
+    activityLog: [],
+
+    // Intervention and TMT history
+    interventionHistory: [],
+    tmtHistory: []
   };
 
   // Calculate initial delay from deadline
@@ -676,7 +713,7 @@ function generateUUID() {
     return crypto.randomUUID();
   }
 
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
     const r = Math.random() * 16 | 0;
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
