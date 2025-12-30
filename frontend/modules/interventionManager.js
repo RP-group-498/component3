@@ -48,17 +48,18 @@ const InterventionManager = {
     /**
      * Trigger an intervention based on the type of drop
      * @param {Object} task 
-     * @param {string} dropType 
+     * @param {string} triggerType 
+     * @param {number} score - Optional score associated with the trigger
      */
-    triggerIntervention(task, dropType) {
-        console.log(`[InterventionManager] Triggering intervention for ${task.text} (${dropType})`);
+    triggerIntervention(task, triggerType, score = 0) {
+        console.log(`[InterventionManager] Triggering intervention for ${task.text} (${triggerType})`);
 
         // Heuristic Logic (Placeholder for ML Model)
         // Future: const { type, strategy } = await ML.predictBestIntervention(task, userProfile);
 
         let type, strategy, title, body;
 
-        if (dropType === 'small_drop') {
+        if (triggerType === 'small_drop') {
             type = INTERVENTION_TYPES.NOTIFICATION;
             title = "Keep Going!";
             body = `You're doing great on "${task.text}". Just 5 more minutes?`;
@@ -69,7 +70,7 @@ const InterventionManager = {
             // Log for ML
             this.logIntervention(task.id, 'small_drop', type, 'simple_nudge');
 
-        } else if (dropType === 'large_drop') {
+        } else if (triggerType === 'large_drop') {
             type = INTERVENTION_TYPES.MODAL;
 
             // Choose strategy based on TMT component analysis (rudimentary)

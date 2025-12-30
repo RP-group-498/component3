@@ -8,10 +8,11 @@ This document is the **single source of truth** for the Procrastination Preventi
 ## 1. Project Overview
 
 ### Primary Goal
-Prevent procrastination by:
-- Detecting motivation drops in real-time.
-- Predicting near-future procrastination using Machine Learning (ML).
-- Applying timely, non-judgmental interventions based on CBT (Cognitive Behavioral Therapy) and ACT (Acceptance and Commitment Therapy).
+Prevent procrastination by operating as an intelligent **Intervention Engine**:
+- **Detect**: Monitor real-time motivation drops using TMT.
+- **Intervene**: Trigger targeted nudges (Pomodoro, 2-minute rule, breathing exercises, etc.) when motivation dips.
+- **Learn**: Compare motivation levels before and after the intervention to measure effectiveness.
+- **Predict**: Use Machine Learning to recommend the *most effective* future nudge based on the user's specific responsiveness and context.
 
 ### Core Philosophy
 - **Implicit Data Only**: The system works without explicit user questionnaires. All metrics are derived from behavioral data (mouse, keyboard, app usage).
@@ -167,10 +168,25 @@ Based on the TMT score, the system classifies the user into a state:
 | **HIGH_DELAY** | Deadline is far, urgency is low. | Break down into immediate milestones. |
 | **SPIRAL** | Critical drop in all metrics. | Compassion reset ("It's okay to restart"). |
 
-### B. Machine Learning Target
-The ML model (offline training) predicts: **Probability of procrastination in the next 15 minutes.**
-*   **Features**: Current TMT scores + Recent trend (last 7 days) + Time of day.
-*   **Target**: `procrastination_detected` event occurs.
+### B. Intervention Feedback Loop
+The system treats interventions as experiments to optimize user productivity.
+
+1.  **Trigger**: Motivation drops below threshold (or procrastination predicted).
+2.  **Action**: System selects a Nudge (e.g., "Start for 2 minutes").
+3.  **Interaction**: User accepts, dismisses, or ignores the nudge.
+4.  **Evaluation**: Compare Motivation Score ($M_{t+5min}$) vs ($M_{t-1min}$).
+    *   *Positive Outcome*: User returns to productive app, $M$ increases.
+    *   *Negative Outcome*: User continues distracting behavior, $M$ stays low.
+
+### C. Machine Learning Target (Adaptive Nudging)
+The ML model now focuses on **Intervention Recommendation**.
+
+*   **Goal**: Predict the intervention with the highest probability of restoring productivity.
+*   **Input Features**:
+    *   Current TMT State (Low Value vs. High Impulsiveness).
+    *   Context (Time of day, Task Type, Previous Nudge fatigue).
+*   **Output**: Ranked list of interventions (e.g., [Pomodoro, Break, Reframing]).
+*   **Training Signal**: The "Evaluation" metric defined above (Change in Motivation Score).
 
 ---
 

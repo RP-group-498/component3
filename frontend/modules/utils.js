@@ -175,3 +175,19 @@ if (typeof module !== 'undefined' && module.exports) {
     validateNoPII
   };
 }
+
+if (typeof window !== 'undefined') {
+  window.Utils = {
+    generateUUID,
+    formatDuration,
+    formatTime,
+    formatTimer,
+    msToMinutes,
+    minutesToMs,
+    getISOTimestamp,
+    calculateTimeUntilDeadline,
+    calculateDelay,
+    debounce,
+    validateNoPII
+  };
+}

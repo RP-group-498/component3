@@ -156,6 +156,37 @@
       </div>
     </div>
 
+    <!-- Delete Task Modal -->
+    <div id="deleteTaskModal" class="modal" role="dialog" aria-hidden="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-panel delete-modal" role="document">
+        <header class="modal-header">
+          <h2 class="modal-title">Delete Task</h2>
+          <button id="deleteCancelBtn" class="ghost" aria-label="Close"><i data-lucide="x"></i></button>
+        </header>
+
+        <div class="modal-body">
+          <p id="deleteTaskMessage">Why are you removing this task?</p>
+          <div class="delete-options">
+            <button id="deleteMistakeBtn" class="option-btn">
+              <i data-lucide="trash-2"></i>
+              <div class="option-text">
+                <span class="option-title">Added by Mistake</span>
+                <span class="option-desc">Remove completely. Won't affect motivation score.</span>
+              </div>
+            </button>
+            <button id="deleteAbandonBtn" class="option-btn">
+              <i data-lucide="x-circle"></i>
+              <div class="option-text">
+                <span class="option-title">Canceling / Postponing</span>
+                <span class="option-desc">Mark as abandoned. Affects motivation history.</span>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <ul id="taskList" class="task-list"></ul>
 
     <div class="footer">Tasks persist in localStorage.</div>

@@ -34,6 +34,7 @@ const InterventionUI = {
         let actionButtonText = "Let's do it";
         if (strategy === 'pomodoro') actionButtonText = "Start Timer";
         if (strategy === '2_minute_rule') actionButtonText = "Start 2 Minutes";
+        if (strategy === 'just_start') actionButtonText = "Start Small";
 
         modal.innerHTML = `
             <div class="intervention-modal animate-pop-in">
@@ -88,6 +89,9 @@ const InterventionUI = {
         } else if (strategy === '2_minute_rule') {
             window.handleStartTask(taskId);
             alert("2 Minute timer started! Just focus for 2 mins.");
+        } else if (strategy === 'just_start') {
+            window.handleStartTask(taskId);
+            alert("Great! Just focus on one tiny part of the task.");
         }
     }
 };

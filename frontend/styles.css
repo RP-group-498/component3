@@ -979,3 +979,79 @@ body.red-theme .tab-btn.active {
     from { transform: scale(0.8); opacity: 0; }
     to { transform: scale(1); opacity: 1; }
 }
+
+/* ===== Delete Modal ===== */
+.delete-modal {
+  max-width: 450px;
+}
+
+.delete-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.option-btn {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  text-align: left;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.option-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border-color: var(--primary);
+}
+
+.option-btn i {
+  width: 24px;
+  height: 24px;
+  color: var(--text-secondary);
+}
+
+.option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.option-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.option-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+#deleteMistakeBtn:hover .option-title {
+  color: var(--alert-red);
+}
+
+#deleteMistakeBtn:hover i {
+  color: var(--alert-red);
+}
+
+#deleteAbandonBtn:hover .option-title {
+  color: var(--alert-yellow);
+}
+
+#deleteAbandonBtn:hover i {
+  color: var(--alert-yellow);
+}
+
+#deleteTaskMessage {
+  font-size: 15px;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}

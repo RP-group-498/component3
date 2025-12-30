@@ -467,7 +467,7 @@ function clamp(value, min, max) {
 }
 
 function scaleToTen(value) {
-  return Math.round(value * 10 * 10) / 10; // Round to 1 decimal
+  return Math.round(value * 10 * 100) / 100; // Round to 2 decimals
 }
 
 // Export API

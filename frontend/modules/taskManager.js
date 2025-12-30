@@ -5,28 +5,36 @@
  * - Session tracking with timestamps
  * - Calculate actual time spent
  * - Integration with event logging
+ * - Backend API Integration
  */
 
+const API_URL = 'http://localhost:8000/api/v1/tasks';
 let tasks = [];
 let activeSessionInterval = null;
 
 /**
- * Load tasks from localStorage and migrate to new data model
+ * Load tasks from Backend API (with localStorage fallback)
  */
-function loadTasks() {
+async function loadTasks() {
   try {
+    const response = await fetch(`${API_URL}/`);
+    if (!response.ok) throw new Error('API request failed');
+    
+    const data = await response.json();
+    if (data.success) {
+      tasks = data.tasks;
+      console.log(`[TaskManager] Loaded ${tasks.length} tasks from API`);
+      
+      // Update local cache
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+      return tasks;
+    }
+  } catch (error) {
+    console.warn('[TaskManager] API offline, loading from localStorage:', error);
     const raw = localStorage.getItem('tasks');
     const loadedTasks = raw ? JSON.parse(raw) : [];
-
-    // Migrate tasks to new data model
     tasks = loadedTasks.map(task => migrateLegacyTask(task));
-
-    console.log(`[TaskManager] Loaded ${tasks.length} tasks`);
     return tasks;
-  } catch (error) {
-    console.error('[TaskManager] Error loading tasks:', error);
-    tasks = [];
-    return [];
   }
 }
 
@@ -165,12 +173,21 @@ function recalculateTMT(taskId) {
       raw: tmt.raw
     });
   }
+  
+  // Sync TMT updates to backend (fire and forget)
+  updateTask(taskId, {
+      expectancy: task.expectancy,
+      value: task.value,
+      impulsivity: task.impulsivity,
+      delay: task.delay,
+      tmtHistory: task.tmtHistory
+  });
 
   return task;
 }
 
 /**
- * Save tasks to localStorage
+ * Save tasks to localStorage (Backup only)
  */
 function saveTasks() {
   try {
@@ -271,7 +288,15 @@ async function recoverCrashedSession(taskId) {
     // Update status to paused
     task.status = 'paused';
 
-    saveTasks();
+    // Sync with backend
+    await updateTask(task.id, {
+        sessions: task.sessions,
+        actualTimeSpent: task.actualTimeSpent,
+        currentSessionStart: null,
+        status: 'paused'
+    });
+    
+    saveTasks(); // Local backup
 
     // Log recovery event
     if (window.EventLogger) {
@@ -299,71 +324,53 @@ async function createTask(taskData) {
     ? window.TMTEngine.getDefaultTMT(tasks)
     : { expectancy: 5, value: 5, impulsiveness: 5, delay: 5 };
 
-  const task = {
-    id: generateUUID(),
-    text: taskData.text,
-    deadlineDate: taskData.deadlineDate || null,
-    deadlineTime: taskData.deadlineTime || null,
-    category: taskData.category || 'personal',
-
-    // Subtasks - each has: id, text, estimatedDuration (minutes), done
-    subtasks: [],
-
-    // Estimated duration is calculated from subtasks
-    estimatedDuration: null,
-
-    // TMT values (calculated, not user input)
-    expectancy: defaultTMT.expectancy,
-    value: defaultTMT.value,
-    impulsivity: defaultTMT.impulsiveness,
-    delay: defaultTMT.delay,
-
-    // Status tracking
-    status: 'pending',
-    actualTimeSpent: 0,
-    sessions: [],
-    currentSessionStart: null,
-    done: false,
-    created: Date.now(),
-    lastNotified: null,
-
-    // Behavioral tracking fields for TMT calculations
-    retryCount: 0,
-    postponementCount: 0,
-    hoursDelayedBeforeStarting: 0,
-    firstStartTime: null,
-    appBackgroundEvents: 0,
-    dismissedReminders: 0,
-    totalReminders: 0,
-
-    // Activity log for detailed tracking (timestamp, appName, windowTitle, category, detail)
-    activityLog: [],
-
-    // Intervention and TMT history
-    interventionHistory: [],
-    tmtHistory: []
+  // Prepare payload
+  const newTask = {
+      text: taskData.text,
+      deadlineDate: taskData.deadlineDate || null,
+      deadlineTime: taskData.deadlineTime || null,
+      category: taskData.category || 'personal'
   };
 
-  // Calculate initial delay from deadline
-  if (window.TMTEngine) {
-    const tmt = window.TMTEngine.calculateTMT(task, tasks);
-    task.delay = tmt.delay;
+  try {
+      const response = await fetch(`${API_URL}/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newTask)
+      });
+      
+      const data = await response.json();
+      if (data.success && data.task) {
+          const task = data.task;
+          
+          // Calculate initial delay
+          if (window.TMTEngine) {
+            const tmt = window.TMTEngine.calculateTMT(task, tasks);
+            task.delay = tmt.delay;
+            // Note: we'd need to update backend with this calculated delay, 
+            // but for now let's just update local
+          }
+          
+          tasks.unshift(task);
+          saveTasks(); // Local backup
+          
+           // Log event
+            if (window.EventLogger) {
+                await window.EventLogger.logEvent('task_created', {
+                task_id: task.id,
+                category: task.category,
+                estimated_duration: task.estimatedDuration
+                });
+            }
+          
+          console.log('[TaskManager] Created task:', task.id);
+          return task;
+      }
+  } catch (e) {
+      console.error('[TaskManager] Create failed:', e);
+      // Fallback logic could go here
   }
-
-  tasks.unshift(task);
-  saveTasks();
-
-  // Log event
-  if (window.EventLogger) {
-    await window.EventLogger.logEvent('task_created', {
-      task_id: task.id,
-      category: task.category,
-      estimated_duration: task.estimatedDuration
-    });
-  }
-
-  console.log('[TaskManager] Created task:', task.id);
-  return task;
+  return null;
 }
 
 /**
@@ -373,22 +380,32 @@ async function createTask(taskData) {
  */
 async function updateTask(taskId, updates) {
   const task = getTaskById(taskId);
-  if (!task) {
-    console.warn('[TaskManager] Task not found:', taskId);
-    return null;
+  if (!task) return null;
+
+  try {
+      const response = await fetch(`${API_URL}/${taskId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates)
+      });
+      
+      const data = await response.json();
+      if (data.success && data.task) {
+           // Update local cache with returned task
+           const index = tasks.findIndex(t => t.id === taskId);
+           if (index !== -1) {
+               tasks[index] = data.task;
+           }
+           saveTasks();
+           return data.task;
+      }
+  } catch (e) {
+       console.error('[TaskManager] Update failed:', e);
+       // Optimistic update locally?
+       Object.assign(task, updates);
+       return task;
   }
-
-  // Apply updates
-  Object.keys(updates).forEach(key => {
-    if (key !== 'id' && key !== 'created') {
-      task[key] = updates[key];
-    }
-  });
-
-  saveTasks();
-
-  console.log('[TaskManager] Updated task:', taskId);
-  return task;
+  return null;
 }
 
 /**
@@ -396,31 +413,31 @@ async function updateTask(taskId, updates) {
  * @param {string} taskId - Task ID
  */
 async function deleteTask(taskId) {
-  const taskIndex = tasks.findIndex(t => t.id === taskId);
-  if (taskIndex === -1) {
-    console.warn('[TaskManager] Task not found:', taskId);
-    return false;
+  try {
+      const response = await fetch(`${API_URL}/${taskId}`, {
+          method: 'DELETE'
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+          const index = tasks.findIndex(t => t.id === taskId);
+          if (index !== -1) {
+              tasks.splice(index, 1);
+              saveTasks();
+          }
+           // Log event
+            if (window.EventLogger) {
+                await window.EventLogger.logEvent('task_deleted', {
+                task_id: taskId
+                });
+            }
+          console.log('[TaskManager] Deleted task:', taskId);
+          return true;
+      }
+  } catch (e) {
+      console.error('[TaskManager] Delete failed:', e);
   }
-
-  const task = tasks[taskIndex];
-
-  // If task is active, stop the session first
-  if (task.status === 'started' && task.currentSessionStart) {
-    await pauseTask(taskId);
-  }
-
-  tasks.splice(taskIndex, 1);
-  saveTasks();
-
-  // Log event
-  if (window.EventLogger) {
-    await window.EventLogger.logEvent('task_deleted', {
-      task_id: taskId
-    });
-  }
-
-  console.log('[TaskManager] Deleted task:', taskId);
-  return true;
+  return false;
 }
 
 /**
@@ -428,49 +445,43 @@ async function deleteTask(taskId) {
  * @param {string} taskId - Task ID
  */
 async function startTask(taskId) {
-  const task = getTaskById(taskId);
-  if (!task) return null;
-
-  // Pause any other active task first
-  const activeTask = getActiveTask();
-  if (activeTask && activeTask.id !== taskId) {
-    await pauseTask(activeTask.id);
+  try {
+      const response = await fetch(`${API_URL}/${taskId}/start`, {
+          method: 'POST'
+      });
+      const data = await response.json();
+      
+      if (data.success && data.task) {
+          // Update local
+          const index = tasks.findIndex(t => t.id === taskId);
+          if (index !== -1) tasks[index] = data.task;
+          
+          // Also pause other tasks locally if backend logic didn't sync them yet
+          // (Actually backend handles pause of others, so reloading all tasks might be safer 
+          // but for performance we just trust the return)
+          
+          // We need to refresh other tasks status though. 
+          // The backend logic: "Pause any other active task first".
+          // So other tasks changed state. We should reload or manually update local state.
+          await loadTasks(); 
+          
+          saveTasks();
+          startAutoSaveInterval();
+          
+          // Notify main process
+            if (typeof require !== 'undefined') {
+                try {
+                    const { ipcRenderer } = require('electron');
+                    ipcRenderer.send('task:started', taskId);
+                } catch(e){}
+            }
+          
+          return data.task;
+      }
+  } catch (e) {
+      console.error('[TaskManager] Start failed:', e);
   }
-
-  // Start new session
-  task.status = 'started';
-  task.currentSessionStart = Date.now();
-  task.done = false;
-
-  // Update behavioral data for TMT calculations
-  if (window.TMTEngine) {
-    window.TMTEngine.updateBehavioralData(task, 'task_started');
-  }
-
-  // Recalculate TMT values
-  recalculateTMT(taskId);
-
-  saveTasks();
-
-  // Start auto-save interval (every 60 seconds)
-  startAutoSaveInterval();
-
-  // Log event
-  const eventType = task.sessions.length > 0 ? 'task_resumed' : 'task_started';
-  if (window.EventLogger) {
-    await window.EventLogger.logEvent(eventType, {
-      task_id: task.id
-    });
-  }
-
-  // Notify main process to start active window monitoring
-  if (typeof require !== 'undefined') {
-    const { ipcRenderer } = require('electron');
-    ipcRenderer.send('task:started', taskId);
-  }
-
-  console.log('[TaskManager] Started task:', taskId);
-  return task;
+  return null;
 }
 
 /**
@@ -478,56 +489,36 @@ async function startTask(taskId) {
  * @param {string} taskId - Task ID
  */
 async function pauseTask(taskId) {
-  const task = getTaskById(taskId);
-  if (!task || task.status !== 'started' || !task.currentSessionStart) {
-    return null;
+  try {
+      const response = await fetch(`${API_URL}/${taskId}/pause`, {
+          method: 'POST'
+      });
+      const data = await response.json();
+      
+      if (data.success && data.task) {
+          const index = tasks.findIndex(t => t.id === taskId);
+          if (index !== -1) tasks[index] = data.task;
+          
+          saveTasks();
+          
+            if (!getActiveTask()) {
+                stopAutoSaveInterval();
+            }
+
+            // Notify main process
+            if (typeof require !== 'undefined') {
+                try {
+                const { ipcRenderer } = require('electron');
+                ipcRenderer.send('task:paused', taskId);
+                } catch(e){}
+            }
+          
+          return data.task;
+      }
+  } catch (e) {
+      console.error('[TaskManager] Pause failed:', e);
   }
-
-  const now = Date.now();
-  const sessionDuration = Math.floor((now - task.currentSessionStart) / 1000 / 60);
-
-  // Save session
-  task.sessions.push({
-    startTime: task.currentSessionStart,
-    endTime: now,
-    duration: sessionDuration
-  });
-
-  task.actualTimeSpent += sessionDuration;
-  task.currentSessionStart = null;
-  task.status = 'paused';
-
-  // Update behavioral data for TMT calculations
-  if (window.TMTEngine) {
-    window.TMTEngine.updateBehavioralData(task, 'task_paused');
-  }
-
-  // Recalculate TMT values
-  recalculateTMT(taskId);
-
-  saveTasks();
-
-  // Stop auto-save interval if no other active tasks
-  if (!getActiveTask()) {
-    stopAutoSaveInterval();
-  }
-
-  // Log event
-  if (window.EventLogger) {
-    await window.EventLogger.logEvent('task_paused', {
-      task_id: task.id,
-      session_duration: sessionDuration
-    });
-  }
-
-  // Notify main process to stop active window monitoring
-  if (typeof require !== 'undefined') {
-    const { ipcRenderer } = require('electron');
-    ipcRenderer.send('task:paused', taskId);
-  }
-
-  console.log('[TaskManager] Paused task:', taskId, `(${sessionDuration}m)`);
-  return task;
+  return null;
 }
 
 /**
@@ -535,36 +526,31 @@ async function pauseTask(taskId) {
  * @param {string} taskId - Task ID
  */
 async function completeTask(taskId) {
-  const task = getTaskById(taskId);
-  if (!task) return null;
-
-  // If task is active, pause it first
-  if (task.status === 'started' && task.currentSessionStart) {
-    await pauseTask(taskId);
+    try {
+      const response = await fetch(`${API_URL}/${taskId}/complete`, {
+          method: 'POST'
+      });
+      const data = await response.json();
+      
+      if (data.success && data.task) {
+          const index = tasks.findIndex(t => t.id === taskId);
+          if (index !== -1) tasks[index] = data.task;
+          saveTasks();
+          
+           // Notify main process
+            if (typeof require !== 'undefined') {
+                try{
+                const { ipcRenderer } = require('electron');
+                ipcRenderer.send('task:completed', taskId);
+                }catch(e){}
+            }
+            
+          return data.task;
+      }
+  } catch (e) {
+      console.error('[TaskManager] Complete failed:', e);
   }
-
-  task.status = 'completed';
-  task.done = true;
-
-  saveTasks();
-
-  // Log event
-  if (window.EventLogger) {
-    await window.EventLogger.logEvent('task_completed', {
-      task_id: task.id,
-      total_duration: task.actualTimeSpent,
-      estimated_duration: task.estimatedDuration
-    });
-  }
-
-  // Notify main process
-  if (typeof require !== 'undefined') {
-    const { ipcRenderer } = require('electron');
-    ipcRenderer.send('task:completed', taskId);
-  }
-
-  console.log('[TaskManager] Completed task:', taskId);
-  return task;
+  return null;
 }
 
 /**
@@ -572,27 +558,22 @@ async function completeTask(taskId) {
  * @param {string} taskId - Task ID
  */
 async function abandonTask(taskId) {
-  const task = getTaskById(taskId);
-  if (!task) return null;
-
-  // If task is active, pause it first
-  if (task.status === 'started' && task.currentSessionStart) {
-    await pauseTask(taskId);
+    try {
+      const response = await fetch(`${API_URL}/${taskId}/abandon`, {
+          method: 'POST'
+      });
+      const data = await response.json();
+      
+      if (data.success && data.task) {
+          const index = tasks.findIndex(t => t.id === taskId);
+          if (index !== -1) tasks[index] = data.task;
+          saveTasks();
+          return data.task;
+      }
+  } catch (e) {
+      console.error('[TaskManager] Abandon failed:', e);
   }
-
-  task.status = 'abandoned';
-
-  saveTasks();
-
-  // Log event
-  if (window.EventLogger) {
-    await window.EventLogger.logEvent('task_abandoned', {
-      task_id: task.id
-    });
-  }
-
-  console.log('[TaskManager] Abandoned task:', taskId);
-  return task;
+  return null;
 }
 
 /**
@@ -604,16 +585,18 @@ async function toggleDone(index) {
   if (!task) return;
 
   if (task.done) {
-    // Uncomplete task
-    task.done = false;
-    task.status = task.sessions.length > 0 ? 'paused' : 'pending';
-    saveTasks();
+     // Backend doesn't have "uncomplete" endpoint explicitly, but updateTask works
+     await updateTask(task.id, { 
+         done: false, 
+         status: task.sessions.length > 0 ? 'paused' : 'pending' 
+     });
   } else {
     // Complete task
     await completeTask(task.id);
   }
-
-  return task;
+  
+  // Reload to ensure sync
+  await loadTasks();
 }
 
 /**
@@ -741,6 +724,8 @@ function calculateEstimatedDuration(task) {
  * @param {Object} activityData - Activity data {appName, windowTitle, category, detail, isWorking}
  */
 function logActivity(taskId, activityData) {
+    // This could also be an API call if backend supports it
+    // For now, keep local or impl later
   const task = getTaskById(taskId);
   if (!task || task.status !== 'started') return;
 
@@ -762,7 +747,7 @@ function logActivity(taskId, activityData) {
   const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
   task.activityLog = task.activityLog.filter(log => log.timestamp >= oneDayAgo);
 
-  saveTasks();
+  saveTasks(); // This saves to localstorage backup, does not sync to backend yet unless we add updateTask call
 }
 
 /**
@@ -772,40 +757,24 @@ function logActivity(taskId, activityData) {
  * @returns {Object} Updated task
  */
 async function addSubtask(taskId, subtaskData) {
-  const task = getTaskById(taskId);
-  if (!task) {
-    console.error('[TaskManager] Task not found:', taskId);
-    return null;
-  }
-
-  const subtask = {
-    id: generateUUID(),
-    text: subtaskData.text,
-    estimatedDuration: subtaskData.estimatedDuration || 0, // in minutes
-    done: false,
-    created: Date.now()
-  };
-
-  task.subtasks.push(subtask);
-
-  // Update task's calculated estimated duration
-  task.estimatedDuration = calculateEstimatedDuration(task);
-
-  saveTasks();
-
-  // Log event
-  if (window.EventLogger) {
-    await window.EventLogger.logEvent('subtask_created', {
-      task_id: taskId,
-      subtask_id: subtask.id
-    });
-  }
-
-  // Recalculate TMT (duration affects value calculation)
-  recalculateTMT(taskId);
-
-  console.log(`[TaskManager] Subtask added to task ${taskId}:`, subtask.text);
-  return task;
+    try {
+      const response = await fetch(`${API_URL}/${taskId}/subtasks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(subtaskData)
+      });
+      const data = await response.json();
+      
+      if (data.success && data.task) {
+          const index = tasks.findIndex(t => t.id === taskId);
+          if (index !== -1) tasks[index] = data.task;
+          saveTasks();
+          return data.task;
+      }
+    } catch (e) {
+        console.error('[TaskManager] Add subtask failed:', e);
+    }
+  return null;
 }
 
 /**
@@ -815,35 +784,13 @@ async function addSubtask(taskId, subtaskData) {
  * @returns {Object} Updated task
  */
 async function deleteSubtask(taskId, subtaskId) {
+  // Backend doesn't have explicit delete subtask endpoint yet?
+  // We can use updateTask and filter subtasks
   const task = getTaskById(taskId);
   if (!task) return null;
-
-  const index = task.subtasks.findIndex(st => st.id === subtaskId);
-  if (index === -1) {
-    console.error('[TaskManager] Subtask not found:', subtaskId);
-    return null;
-  }
-
-  task.subtasks.splice(index, 1);
-
-  // Update task's calculated estimated duration
-  task.estimatedDuration = calculateEstimatedDuration(task);
-
-  saveTasks();
-
-  // Log event
-  if (window.EventLogger) {
-    await window.EventLogger.logEvent('subtask_deleted', {
-      task_id: taskId,
-      subtask_id: subtaskId
-    });
-  }
-
-  // Recalculate TMT
-  recalculateTMT(taskId);
-
-  console.log(`[TaskManager] Subtask deleted from task ${taskId}`);
-  return task;
+  
+  const newSubtasks = task.subtasks.filter(st => st.id !== subtaskId);
+  return await updateTask(taskId, { subtasks: newSubtasks });
 }
 
 /**
@@ -853,44 +800,24 @@ async function deleteSubtask(taskId, subtaskId) {
  * @returns {Object} Updated task
  */
 async function toggleSubtask(taskId, subtaskId) {
-  const task = getTaskById(taskId);
-  if (!task) return null;
-
-  const subtask = task.subtasks.find(st => st.id === subtaskId);
-  if (!subtask) {
-    console.error('[TaskManager] Subtask not found:', subtaskId);
-    return null;
-  }
-
-  subtask.done = !subtask.done;
-
-  // Update TMT behavioral data based on subtask completion
-  if (window.TMTEngine) {
-    window.TMTEngine.updateBehavioralData(
-      task,
-      subtask.done ? 'subtask_completed' : 'subtask_uncompleted',
-      {
-        subtask_id: subtaskId,
-        task_id: taskId
+    try {
+      const response = await fetch(`${API_URL}/${taskId}/subtasks/${subtaskId}/toggle`, {
+          method: 'POST'
+      });
+      const data = await response.json();
+      
+      if (data.success && data.task) {
+          const index = tasks.findIndex(t => t.id === taskId);
+          if (index !== -1) tasks[index] = data.task;
+          
+          recalculateTMT(taskId); // Update TMT locally/remotely
+          saveTasks();
+          return data.task;
       }
-    );
-  }
-
-  saveTasks();
-
-  // Recalculate TMT values after subtask toggle
-  recalculateTMT(taskId);
-
-  // Log event
-  if (window.EventLogger) {
-    await window.EventLogger.logEvent(subtask.done ? 'subtask_completed' : 'subtask_uncompleted', {
-      task_id: taskId,
-      subtask_id: subtaskId
-    });
-  }
-
-  console.log(`[TaskManager] Subtask ${subtask.done ? 'completed' : 'uncompleted'}:`, subtask.text, '- TMT recalculated');
-  return task;
+    } catch (e) {
+        console.error('[TaskManager] Toggle subtask failed:', e);
+    }
+  return null;
 }
 
 /**
@@ -901,40 +828,18 @@ async function toggleSubtask(taskId, subtaskId) {
  * @returns {Object} Updated task
  */
 async function updateSubtask(taskId, subtaskId, updates) {
+  // Manual update via updateTask since backend doesn't have specific endpoint
   const task = getTaskById(taskId);
   if (!task) return null;
-
-  const subtask = task.subtasks.find(st => st.id === subtaskId);
-  if (!subtask) {
-    console.error('[TaskManager] Subtask not found:', subtaskId);
-    return null;
-  }
-
-  if (updates.text !== undefined) {
-    subtask.text = updates.text;
-  }
-  if (updates.estimatedDuration !== undefined) {
-    subtask.estimatedDuration = updates.estimatedDuration;
-  }
-
-  // Update task's calculated estimated duration
-  task.estimatedDuration = calculateEstimatedDuration(task);
-
-  saveTasks();
-
-  // Log event
-  if (window.EventLogger) {
-    await window.EventLogger.logEvent('subtask_updated', {
-      task_id: taskId,
-      subtask_id: subtaskId
-    });
-  }
-
-  // Recalculate TMT (duration affects value calculation)
-  recalculateTMT(taskId);
-
-  console.log(`[TaskManager] Subtask updated:`, subtask.text);
-  return task;
+  
+  const subtasks = task.subtasks.map(st => {
+      if (st.id === subtaskId) {
+          return { ...st, ...updates };
+      }
+      return st;
+  });
+  
+  return await updateTask(taskId, { subtasks });
 }
 
 // Export API

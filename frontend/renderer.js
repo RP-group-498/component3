@@ -3,7 +3,31 @@
  * Phase 1 Complete Implementation
  */
 
-const { ipcRenderer } = require('electron');
+let ipcRenderer;
+try {
+  // Try to load electron if available (desktop app)
+  if (typeof require !== 'undefined') {
+    const electron = require('electron');
+    ipcRenderer = electron.ipcRenderer;
+  } else {
+    throw new Error('require is not defined');
+  }
+} catch (e) {
+  console.warn('[Renderer] Electron not detected. Running in browser mode.');
+  // Mock ipcRenderer for browser testing
+  ipcRenderer = {
+    on: (channel, listener) => {
+      console.log(`[MockIPC] Listening on ${channel}`);
+    },
+    send: (channel, data) => {
+      console.log(`[MockIPC] Sending to ${channel}:`, data);
+    },
+    invoke: async (channel, data) => {
+      console.log(`[MockIPC] Invoking ${channel}:`, data);
+      return null;
+    }
+  };
+}
 
 // DOM Element References
 const addBtn = document.getElementById('addBtn');
@@ -25,6 +49,7 @@ const avgMotivationEl = document.getElementById('avgMotivation');
 const motivationTrendEl = document.getElementById('motivationTrend');
 
 let currentEditingTaskId = null;
+let currentDeletingTaskId = null;
 let currentTaskFilter = 'all'; // Task filter state
 
 // Initialize Application
@@ -32,51 +57,89 @@ async function init() {
   console.log('[App] Initializing Phase 1...');
 
   // Initialize EventLogger
-  const eventLoggerInit = await EventLogger.initEventLogger();
-  if (!eventLoggerInit.success) {
-    console.error('[App] Failed to initialize event logger');
+  try {
+    if (typeof EventLogger !== 'undefined') {
+      const eventLoggerInit = await EventLogger.initEventLogger();
+      if (!eventLoggerInit.success) {
+        console.error('[App] Failed to initialize event logger');
+      }
+    } else {
+      console.warn('[App] EventLogger module not loaded');
+    }
+  } catch (e) {
+    console.error('[App] Error initializing EventLogger:', e);
   }
 
   // Initialize UIManager
-  UIManager.initUI({
-    taskList,
-    taskModal,
-    modalTitle,
-    createBtn,
-    modalTaskName,
-    deadlineDate,
-    deadlineTime,
-    category
-  });
+  try {
+    if (typeof UIManager !== 'undefined') {
+      UIManager.initUI({
+        taskList,
+        taskModal,
+        modalTitle,
+        createBtn,
+        modalTaskName,
+        deadlineDate,
+        deadlineTime,
+        category
+      });
+    } else {
+      console.error('[App] UIManager module not loaded');
+    }
+  } catch (e) {
+    console.error('[App] Error initializing UIManager:', e);
+  }
 
   // Initialize Intervention Manager (implicit via loading script, but good to log)
   console.log('[App] Intervention Engine active');
 
   // Load tasks
-  TaskManager.loadTasks();
+  try {
+    if (typeof TaskManager !== 'undefined') {
+      await TaskManager.loadTasks();
 
-  // Check for crashed session
-  const crashed = TaskManager.checkForCrashedSession();
-  if (crashed) {
-    const recover = confirm(
-      `It looks like the app crashed during a session for "${crashed.task.text}". ` +
-      `Would you like to recover the ${crashed.estimatedDuration}m session?`
-    );
-    if (recover) {
-      await TaskManager.recoverCrashedSession(crashed.task.id);
+      // Check for crashed session
+      const crashed = TaskManager.checkForCrashedSession();
+      if (crashed) {
+        const recover = confirm(
+          `It looks like the app crashed during a session for "${crashed.task.text}". ` +
+          `Would you like to recover the ${crashed.estimatedDuration}m session?`
+        );
+        if (recover) {
+          await TaskManager.recoverCrashedSession(crashed.task.id);
+        }
+      }
+    } else {
+      console.error('[App] TaskManager module not loaded');
     }
+  } catch (e) {
+    console.error('[App] Error loading tasks:', e);
   }
 
   // Initial render
-  render();
+  try {
+    render();
+  } catch (e) {
+    console.error('[App] Error rendering:', e);
+  }
 
   // Wire up event handlers
-  wireUpEventHandlers();
+  try {
+    wireUpEventHandlers();
+  } catch (e) {
+    console.error('[App] Error wiring event handlers:', e);
+  }
 
   // Initialize motivation chart
-  if (motivationCanvas) {
-    MotivationChart.initChart(motivationCanvas);
-    updateChart();
+  try {
+    if (motivationCanvas && typeof MotivationChart !== 'undefined') {
+      MotivationChart.initChart(motivationCanvas);
+      updateChart();
+    } else {
+        console.warn('[App] MotivationChart not loaded or canvas missing');
+    }
+  } catch (e) {
+    console.error('[App] Error initializing chart:', e);
   }
 
   // Setup period selector buttons
@@ -89,8 +152,10 @@ async function init() {
       btn.classList.add('active');
       // Update chart period
       const period = btn.dataset.period;
-      MotivationChart.setPeriod(period);
-      updateChart();
+      if (typeof MotivationChart !== 'undefined') {
+          MotivationChart.setPeriod(period);
+          updateChart();
+      }
     });
   });
 
@@ -112,32 +177,40 @@ async function init() {
   const downloadCsvBtn = document.getElementById('downloadCsvBtn');
   if (downloadCsvBtn) {
     downloadCsvBtn.addEventListener('click', () => {
-      const tasks = TaskManager.getAllTasks();
-      if (tasks.length === 0) {
-        alert('No tasks available to download. Create some tasks first!');
-        return;
+      if (typeof TaskManager !== 'undefined' && typeof MotivationChart !== 'undefined') {
+        const tasks = TaskManager.getAllTasks();
+        if (tasks.length === 0) {
+          alert('No tasks available to download. Create some tasks first!');
+          return;
+        }
+        MotivationChart.downloadCSV(tasks);
       }
-      MotivationChart.downloadCSV(tasks);
     });
   }
 
   // Setup real-time TMT recalculation and chart polling (every 60 seconds)
   setInterval(() => {
-    // Recalculate TMT for all tasks (Delay changes as time passes)
-    const tasks = TaskManager.getAllTasks();
-    tasks.forEach(task => {
-      if (task.status !== 'completed' && task.status !== 'abandoned') {
-        TaskManager.recalculateTMT(task.id);
-      }
-    });
+    if (typeof TaskManager !== 'undefined') {
+        // Recalculate TMT for all tasks (Delay changes as time passes)
+        const tasks = TaskManager.getAllTasks();
+        tasks.forEach(task => {
+        if (task.status !== 'completed' && task.status !== 'abandoned') {
+            TaskManager.recalculateTMT(task.id);
+        }
+        });
 
-    // Update chart with new TMT values
-    updateChart();
-    console.log('[App] TMT recalculated and chart updated');
+        // Update chart with new TMT values
+        updateChart();
+        console.log('[App] TMT recalculated and chart updated');
+    }
   }, 60000); // 60 seconds
 
   // Setup active window monitoring IPC listeners
-  setupActiveWindowListeners();
+  try {
+    setupActiveWindowListeners();
+  } catch (e) {
+      console.warn('[App] Failed to setup active window listeners:', e);
+  }
 
   // Log app started (not in spec, but useful)
   console.log('[App] Phase 1 initialized successfully');
@@ -352,11 +425,56 @@ function wireUpEventHandlers() {
 
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && taskModal.classList.contains('open')) {
-      UIManager.hideTaskModal();
-      currentEditingTaskId = null;
+    if (e.key === 'Escape') {
+      if (taskModal.classList.contains('open')) {
+        UIManager.hideTaskModal();
+        currentEditingTaskId = null;
+      }
+      // Close delete modal on Escape
+      const deleteModal = document.getElementById('deleteTaskModal');
+      if (deleteModal && deleteModal.classList.contains('visible')) {
+        hideDeleteModal();
+      }
     }
   });
+
+  // Delete modal handlers
+  const deleteModal = document.getElementById('deleteTaskModal');
+  const deleteMistakeBtn = document.getElementById('deleteMistakeBtn');
+  const deleteAbandonBtn = document.getElementById('deleteAbandonBtn');
+  const deleteCancelBtn = document.getElementById('deleteCancelBtn');
+
+  if (deleteMistakeBtn) {
+    deleteMistakeBtn.addEventListener('click', async () => {
+      if (currentDeletingTaskId) {
+        await TaskManager.deleteTask(currentDeletingTaskId);
+        render();
+        hideDeleteModal();
+      }
+    });
+  }
+
+  if (deleteAbandonBtn) {
+    deleteAbandonBtn.addEventListener('click', async () => {
+      if (currentDeletingTaskId) {
+        await TaskManager.abandonTask(currentDeletingTaskId);
+        render();
+        hideDeleteModal();
+      }
+    });
+  }
+
+  if (deleteCancelBtn) {
+    deleteCancelBtn.addEventListener('click', hideDeleteModal);
+  }
+
+  if (deleteModal) {
+    deleteModal.addEventListener('click', (e) => {
+      if (e.target.classList.contains('modal-backdrop')) {
+        hideDeleteModal();
+      }
+    });
+  }
 }
 
 // Render task list
@@ -550,19 +668,20 @@ window.handleDeleteTask = async function (taskId, index) {
   const task = TaskManager.getTaskById(taskId);
   if (!task) return;
 
+  currentDeletingTaskId = taskId;
+
   // Warn if task is active
   if (task.status === 'started') {
     const confirmed = confirm(
       `"${task.text}" is currently active. Deleting will stop the timer. Continue?`
     );
-    if (!confirmed) return;
-  } else {
-    const confirmed = confirm(`Delete "${task.text}"?`);
-    if (!confirmed) return;
+    if (!confirmed) {
+      currentDeletingTaskId = null;
+      return;
+    }
   }
 
-  await TaskManager.deleteTask(taskId);
-  render();
+  showDeleteModal(task);
 };
 
 // Subtask handlers
@@ -604,6 +723,20 @@ function hideSubtaskModal() {
   const modal = document.getElementById('subtaskModal');
   modal.classList.remove('visible');
   currentSubtaskTaskId = null;
+}
+
+function showDeleteModal(task) {
+  const modal = document.getElementById('deleteTaskModal');
+  const message = document.getElementById('deleteTaskMessage');
+
+  message.textContent = `Why are you removing "${task.text}"?`;
+  modal.classList.add('visible');
+}
+
+function hideDeleteModal() {
+  const modal = document.getElementById('deleteTaskModal');
+  modal.classList.remove('visible');
+  currentDeletingTaskId = null;
 }
 
 async function handleSubtaskSubmit() {
