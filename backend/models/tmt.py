@@ -32,6 +32,19 @@ class TMTRawMetrics(BaseModel):
     taskDuration: float
 
 
+class TMTDataPoint(BaseModel):
+    """TMT history data point"""
+    timestamp: int
+    motivation: float
+    taskId: str
+    taskName: str
+
+class TMTAggregateResponse(BaseModel):
+    """Aggregated TMT history response"""
+    success: bool
+    history: list[TMTDataPoint]
+    message: Optional[str] = None
+
 class TMTResponse(BaseModel):
     """TMT calculation response"""
     success: bool

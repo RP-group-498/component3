@@ -30,16 +30,23 @@ class EventService:
     
     async def log_event(self, event_data: EventCreate) -> Event:
         """Log a new event"""
-        event = Event(
-            id=self._generate_uuid(),
-            timestamp=self._get_current_timestamp(),
-            event_type=event_data.event_type,
-            data=event_data.data or {}
-        )
+        event_dict = {
+            "id": self._generate_uuid(),
+            "timestamp": event_data.timestamp if event_data.timestamp else self._get_current_timestamp(),
+            "event_type": event_data.event_type,
+            "data": event_data.data or {}
+        }
         
-        await self.collection.insert_one(event.model_dump())
+        if event_data.user_id:
+            event_dict["user_id"] = event_data.user_id
         
-        # We don't need to limit manually with MongoDB, but we could add a TTL index later.
+        # Create Event model instance
+        event = Event(**event_dict)
+        
+        # Convert to dict for insertion
+        doc = event.model_dump()
+        
+        await self.collection.insert_one(doc)
         
         return event
     

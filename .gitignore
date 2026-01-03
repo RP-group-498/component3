@@ -50,6 +50,25 @@ desktop.ini
 *.bak
 *.swp
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+.env/
+ENV/
+*.egg-info/
+.eggs/
+*.egg
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
 # Documentation
 /docs/
 GEMINI.md

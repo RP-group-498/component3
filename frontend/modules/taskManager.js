@@ -13,12 +13,115 @@ let tasks = [];
 let activeSessionInterval = null;
 
 /**
+ * Sync dirty (offline) tasks to backend
+ */
+async function syncTasks() {
+  const dirtyTasks = tasks.filter(t => t._dirty);
+  if (dirtyTasks.length === 0) return;
+
+  console.log(`[TaskManager] Syncing ${dirtyTasks.length} dirty tasks...`);
+  
+  for (const task of dirtyTasks) {
+    try {
+      // If task looks like it was created offline (has a generated ID but maybe not valid on server if UUIDs collide, 
+      // but we use UUIDs so collision is rare).
+      // We need to know if it's a CREATE or UPDATE. 
+      // A simple heuristic: check if we can GET it. 
+      // Or better: try PUT, if 404 then POST. 
+      // But FastAPI might not support PUT on non-existent ID.
+      
+      // Let's assume if it has _dirty it needs saving.
+      // We can try to UPDATE first.
+      
+      const updateResponse = await fetch(`${API_URL}/${task.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...task, _dirty: undefined }) // Send all fields, remove _dirty
+      });
+      
+      if (updateResponse.ok) {
+        delete task._dirty;
+        continue;
+      }
+      
+      if (updateResponse.status === 404) {
+        // Task doesn't exist on server, so CREATE it
+        // We need to match the create payload structure
+        // But the task object here is full.
+        // We might need a special "upsert" or just POST with ID if backend supports it.
+        // Backend `create_task` usually generates ID.
+        // If we want to preserve the offline ID, we need to modify backend or use PUT as upsert if supported.
+        // Checking backend... backend POST generates new ID.
+        // So if we POST, we get a NEW ID. We must update local ID.
+        
+        // Actually, for simplicity in this turn, let's just try POSTing as a new task 
+        // if PUT fails, but that duplicates data if we aren't careful.
+        
+        // BETTER STRATEGY: 
+        // The backend `create_task` endpoint takes `TaskCreate`.
+        // If we want to sync an offline task, we should use the same `TaskCreate` payload.
+        
+        const payload = {
+           text: task.text,
+           deadlineDate: task.deadlineDate,
+           deadlineTime: task.deadlineTime,
+           category: task.category
+        };
+        
+        const createResponse = await fetch(`${API_URL}/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if (createResponse.ok) {
+             const data = await createResponse.json();
+             // We got a new ID. We must swap the local ID with the new one
+             // and update all references (subtasks, etc would need care, but let's assume simple task first)
+             const oldId = task.id;
+             const newId = data.task.id;
+             
+             // Update in place
+             Object.assign(task, data.task);
+             delete task._dirty;
+             
+             console.log(`[TaskManager] Synced offline task. ID changed ${oldId} -> ${newId}`);
+        }
+      }
+    } catch (e) {
+      console.warn('[TaskManager] Sync failed for task:', task.id, e);
+    }
+  }
+  saveTasks();
+}
+
+/**
  * Load tasks from Backend API (with localStorage fallback)
  */
 async function loadTasks() {
+  // 1. Initialize from localStorage if memory is empty
+  if (tasks.length === 0) {
+      const raw = localStorage.getItem('tasks');
+      if (raw) {
+          try {
+            const loadedTasks = JSON.parse(raw);
+            tasks = loadedTasks.map(task => migrateLegacyTask(task));
+            console.log(`[TaskManager] Initialized ${tasks.length} tasks from local cache`);
+          } catch(e) {
+            console.warn('[TaskManager] Failed to parse local tasks', e);
+          }
+      }
+  }
+
+  // 2. Try to sync offline changes (if any exist locally)
+  if (tasks.length > 0) {
+      await syncTasks();
+  }
+
+  // 3. Fetch latest state from Backend
   try {
     const response = await fetch(`${API_URL}/`);
-    if (!response.ok) throw new Error('API request failed');
+    if (!response.ok) throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     
     const data = await response.json();
     if (data.success) {
@@ -31,9 +134,7 @@ async function loadTasks() {
     }
   } catch (error) {
     console.warn('[TaskManager] API offline, loading from localStorage:', error);
-    const raw = localStorage.getItem('tasks');
-    const loadedTasks = raw ? JSON.parse(raw) : [];
-    tasks = loadedTasks.map(task => migrateLegacyTask(task));
+    // We already loaded from localStorage in step 1, so just return what we have
     return tasks;
   }
 }
@@ -367,8 +468,40 @@ async function createTask(taskData) {
           return task;
       }
   } catch (e) {
-      console.error('[TaskManager] Create failed:', e);
-      // Fallback logic could go here
+      console.warn('[TaskManager] Create failed (offline mode):', e.message);
+      
+      // Fallback: Create locally
+      const offlineTask = {
+        id: generateUUID(),
+        ...newTask,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        _dirty: true // Mark as needing sync
+      };
+      
+      // Populate defaults
+      const task = migrateLegacyTask(offlineTask);
+      
+      // Set TMT defaults
+      task.expectancy = defaultTMT.expectancy;
+      task.value = defaultTMT.value;
+      task.impulsivity = defaultTMT.impulsiveness;
+      task.delay = defaultTMT.delay;
+      
+      tasks.unshift(task);
+      saveTasks();
+      
+      if (window.EventLogger) {
+         try {
+            await window.EventLogger.logEvent('task_created', {
+                task_id: task.id,
+                category: task.category,
+                estimated_duration: task.estimatedDuration
+            });
+         } catch(err) { console.warn('Event log failed', err); }
+      }
+      
+      return task;
   }
   return null;
 }
@@ -400,9 +533,11 @@ async function updateTask(taskId, updates) {
            return data.task;
       }
   } catch (e) {
-       console.error('[TaskManager] Update failed:', e);
-       // Optimistic update locally?
+       console.warn('[TaskManager] Update failed (offline mode):', e);
+       // Optimistic update locally
        Object.assign(task, updates);
+       task._dirty = true; // Mark as needing sync
+       saveTasks();
        return task;
   }
   return null;
@@ -435,7 +570,14 @@ async function deleteTask(taskId) {
           return true;
       }
   } catch (e) {
-      console.error('[TaskManager] Delete failed:', e);
+      console.warn('[TaskManager] Delete failed (offline mode):', e);
+      // Fallback: Delete locally
+      const index = tasks.findIndex(t => t.id === taskId);
+      if (index !== -1) {
+          tasks.splice(index, 1);
+          saveTasks();
+          return true;
+      }
   }
   return false;
 }
@@ -723,9 +865,7 @@ function calculateEstimatedDuration(task) {
  * @param {string} taskId - Task ID
  * @param {Object} activityData - Activity data {appName, windowTitle, category, detail, isWorking}
  */
-function logActivity(taskId, activityData) {
-    // This could also be an API call if backend supports it
-    // For now, keep local or impl later
+async function logActivity(taskId, activityData) {
   const task = getTaskById(taskId);
   if (!task || task.status !== 'started') return;
 
@@ -734,20 +874,33 @@ function logActivity(taskId, activityData) {
   }
 
   // Add activity entry with timestamp
-  task.activityLog.push({
+  const logEntry = {
     timestamp: Date.now(),
     appName: activityData.appName || '-',
     windowTitle: activityData.windowTitle || '-',
     category: activityData.category || 'other',
     detail: activityData.detail || activityData.appName || '-',
     isWorking: activityData.isWorking !== undefined ? activityData.isWorking : true
-  });
+  };
+  
+  task.activityLog.push(logEntry);
 
   // Keep only last 24 hours of activity logs to prevent excessive data
   const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
   task.activityLog = task.activityLog.filter(log => log.timestamp >= oneDayAgo);
 
-  saveTasks(); // This saves to localstorage backup, does not sync to backend yet unless we add updateTask call
+  saveTasks(); // Local backup
+  
+  // Sync to backend
+  // We send the entire log array for now, or just the new entry if we create a specific endpoint later.
+  // Using updateTask sends the whole task object or parts. 
+  // To avoid huge payloads, ideally we'd have a specific endpoint, but for now we sync the updated list.
+  try {
+     // Don't await this to keep UI responsive
+     updateTask(taskId, { activityLog: task.activityLog });
+  } catch (e) {
+      console.warn('[TaskManager] Failed to sync activity log:', e);
+  }
 }
 
 /**
@@ -871,6 +1024,7 @@ if (typeof window !== 'undefined') {
     updateSubtask,
     calculateEstimatedDuration,
     // Activity tracking
-    logActivity
+    logActivity,
+    syncTasks // Exported for manual sync
   };
 }

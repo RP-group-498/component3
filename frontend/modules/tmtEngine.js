@@ -428,18 +428,25 @@ function updateBehavioralData(task, event, data = {}) {
 function getDefaultTMT(allTasks = []) {
   const userAvgImpulsiveness = getUserAverageImpulsiveness(allTasks);
 
+  const rawExpectancy = 0.5;
+  const rawValue = 0.5;
+  const rawImpulsiveness = userAvgImpulsiveness; // Already 0-1
+  const rawDelay = 0.5;
+  
+  const rawMotivation = (rawExpectancy * rawValue) / (1 + rawImpulsiveness * rawDelay);
+
   return {
     expectancy: 5.0,
     value: 5.0,
     impulsiveness: scaleToTen(userAvgImpulsiveness),
     delay: 5.0,
-    motivation: 5.0,
+    motivation: scaleToTen(rawMotivation),
     raw: {
-      expectancy: 0.5,
-      value: 0.5,
-      impulsiveness: userAvgImpulsiveness,
-      delay: 0.5,
-      motivation: 0.5
+      expectancy: rawExpectancy,
+      value: rawValue,
+      impulsiveness: rawImpulsiveness,
+      delay: rawDelay,
+      motivation: rawMotivation
     }
   };
 }

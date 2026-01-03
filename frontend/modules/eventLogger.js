@@ -34,9 +34,11 @@ const ALLOWED_EVENT_TYPES = [
 
 // Blacklisted metadata keys (PII protection)
 const BLACKLISTED_KEYS = ['text', 'name', 'email', 'title', 'description', 'username', 'password'];
+const API_URL = 'http://localhost:8000/api/v1/events';
 
 let db = null;
 let userId = null;
+let syncInterval = null;
 
 /**
  * Initialize IndexedDB and generate/retrieve user ID
@@ -53,12 +55,127 @@ async function initEventLogger() {
     // Run cleanup on old events
     await cleanupOldEvents(90); // Keep 90 days
 
+    // Start background sync
+    startSyncInterval();
+
     console.log('[EventLogger] Initialized with user ID:', userId);
     return { success: true, userId };
   } catch (error) {
     console.error('[EventLogger] Initialization failed:', error);
     return { success: false, error: error.message };
   }
+}
+
+/**
+ * Start background synchronization
+ */
+function startSyncInterval() {
+  if (syncInterval) clearInterval(syncInterval);
+  
+  // Try to sync immediately on startup
+  setTimeout(syncEvents, 5000);
+  
+  // Sync every 30 seconds
+  syncInterval = setInterval(syncEvents, 30000);
+}
+
+/**
+ * Sync offline events to backend
+ */
+async function syncEvents() {
+  if (!db || !userId) return;
+
+  try {
+    const unsyncedEvents = await getUnsyncedEvents();
+    if (unsyncedEvents.length === 0) return;
+
+    console.log(`[EventLogger] Syncing ${unsyncedEvents.length} events...`);
+
+    // Process in chunks of 50 to avoid timeouts
+    const chunks = [];
+    for (let i = 0; i < unsyncedEvents.length; i += 50) {
+      chunks.push(unsyncedEvents.slice(i, i + 50));
+    }
+
+    for (const chunk of chunks) {
+      // Send each event individually for now (bulk endpoint would be better)
+      // or parallelize with Promise.all
+      await Promise.all(chunk.map(async (event) => {
+        try {
+          const payload = {
+            event_type: event.event_type,
+            data: event.metadata,
+            timestamp: new Date(event.timestamp).getTime(), // Convert ISO to ms
+            user_id: event.user_id
+          };
+
+          const response = await fetch(API_URL + '/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          if (response.ok) {
+            await markEventSynced(event.id);
+          }
+        } catch (e) {
+          // Ignore network errors, will retry next time
+        }
+      }));
+    }
+  } catch (error) {
+    console.error('[EventLogger] Sync failed:', error);
+  }
+}
+
+/**
+ * Get unsynced events from IndexedDB
+ */
+async function getUnsyncedEvents() {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([EVENT_STORE], 'readonly');
+    const store = transaction.objectStore(EVENT_STORE);
+    const request = store.openCursor();
+    const events = [];
+
+    request.onsuccess = (event) => {
+      const cursor = event.target.result;
+      if (cursor) {
+        if (!cursor.value.synced) {
+          events.push(cursor.value);
+        }
+        cursor.continue();
+      } else {
+        resolve(events);
+      }
+    };
+    
+    request.onerror = () => reject(request.error);
+  });
+}
+
+/**
+ * Mark event as synced in IndexedDB
+ */
+async function markEventSynced(eventId) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([EVENT_STORE], 'readwrite');
+    const store = transaction.objectStore(EVENT_STORE);
+    const request = store.get(eventId);
+
+    request.onsuccess = () => {
+      const event = request.result;
+      if (event) {
+        event.synced = true;
+        store.put(event);
+        resolve();
+      } else {
+        resolve(); // Event not found?
+      }
+    };
+    
+    request.onerror = () => reject(request.error);
+  });
 }
 
 /**
@@ -457,6 +574,7 @@ if (typeof window !== 'undefined') {
     clearAllEvents,
     getSetting,
     saveSetting,
+    syncEvents, // Exported for manual sync
     getUserId: () => userId
   };
 }

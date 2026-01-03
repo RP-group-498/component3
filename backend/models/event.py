@@ -9,6 +9,8 @@ class EventCreate(BaseModel):
     """Event creation model"""
     event_type: str
     data: Optional[Dict[str, Any]] = None
+    timestamp: Optional[int] = None
+    user_id: Optional[str] = None
 
 
 class Event(BaseModel):
@@ -17,6 +19,7 @@ class Event(BaseModel):
     timestamp: int
     event_type: str
     data: Optional[Dict[str, Any]] = None
+    user_id: Optional[str] = None
     
     class Config:
         from_attributes = True

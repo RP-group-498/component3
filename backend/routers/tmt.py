@@ -2,12 +2,37 @@
 TMT (Temporal Motivation Theory) API router
 """
 from fastapi import APIRouter, HTTPException, status
-from models.tmt import TMTResponse
+from models.tmt import TMTResponse, TMTAggregateResponse, TMTDataPoint
 from models.task import TMTHistory, TaskUpdate
 from services.task_service import task_service
 from services.tmt_service import tmt_service
 
 router = APIRouter()
+
+
+@router.get("/history", response_model=TMTAggregateResponse)
+async def get_aggregated_history(period: str = "1d"):
+    """Get aggregated TMT history for all tasks"""
+    tasks = await task_service.get_all_tasks()
+    history_points = []
+    
+    for task in tasks:
+        for entry in task.tmtHistory:
+            history_points.append(TMTDataPoint(
+                timestamp=entry.timestamp,
+                motivation=entry.motivation,
+                taskId=task.id,
+                taskName=task.text
+            ))
+            
+    # Sort by timestamp
+    history_points.sort(key=lambda x: x.timestamp)
+    
+    return TMTAggregateResponse(
+        success=True,
+        history=history_points,
+        message=f"Retrieved {len(history_points)} data points"
+    )
 
 
 @router.get("/{task_id}", response_model=TMTResponse)

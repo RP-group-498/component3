@@ -191,6 +191,9 @@ async function init() {
   // Setup real-time TMT recalculation and chart polling (every 60 seconds)
   setInterval(() => {
     if (typeof TaskManager !== 'undefined') {
+        // Sync any offline/dirty tasks to backend
+        TaskManager.syncTasks();
+
         // Recalculate TMT for all tasks (Delay changes as time passes)
         const tasks = TaskManager.getAllTasks();
         tasks.forEach(task => {
@@ -369,6 +372,86 @@ function setupActiveWindowListeners() {
   });
 }
 
+// Setup Demo Buttons
+function setupDemoButtons() {
+    console.log('[Demo] Setting up buttons...');
+    const demoButtons = document.querySelectorAll('.demo-btn');
+    
+    if (demoButtons.length === 0) {
+        console.warn('[Demo] No demo buttons found in DOM');
+        return;
+    }
+
+    demoButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            console.log('[Demo] Button clicked:', btn.dataset.strategy);
+            
+            try {
+                if (typeof InterventionUI === 'undefined') {
+                    alert('Error: InterventionUI module not loaded.');
+                    return;
+                }
+
+                const strategy = btn.dataset.strategy;
+                
+                // Safe task ID retrieval
+                let taskId = 'demo_task_id';
+                if (typeof TaskManager !== 'undefined') {
+                    const active = TaskManager.getActiveTask();
+                    const all = TaskManager.getAllTasks();
+                    if (active) taskId = active.id;
+                    else if (all && all.length > 0) taskId = all[0].id;
+                }
+
+                const mockInterventionId = 'demo_' + Date.now();
+                
+                if (strategy === 'notification') {
+                    InterventionUI.showNotification(
+                        "Focus Nudge", 
+                        "Hey! You seem a bit distracted. Let's get back to it."
+                    );
+                } else {
+                    let title = "Intervention";
+                    let body = "Let's try a strategy.";
+                    
+                    switch(strategy) {
+                        case 'pomodoro':
+                            title = "Distracted?";
+                            body = "Let's try a Pomodoro session. 25 minutes of focus, then a break.";
+                            break;
+                        case 'two_minute_rule':
+                            title = "Feeling Stuck?";
+                            body = "Try the 2-Minute Rule: Just commit to working for 2 minutes.";
+                            break;
+                        case 'breathing':
+                            title = "High Anxiety?";
+                            body = "Let's take a deep breath together. Box breathing: 4-4-4-4.";
+                            break;
+                        case 'reframing':
+                            title = "Low Value?";
+                            body = "Remember why this task matters to your long-term goals.";
+                            break;
+                        case 'break':
+                            title = "Fatigue Detected";
+                            body = "You've been working hard. Time for a 5-minute break?";
+                            break;
+                    }
+                    
+                    InterventionUI.showInterventionModal(strategy, {
+                        title,
+                        body,
+                        taskId,
+                        interventionId: mockInterventionId
+                    });
+                }
+            } catch (e) {
+                console.error('[Demo] Error triggering intervention:', e);
+                alert('Demo Error: ' + e.message);
+            }
+        });
+    });
+}
+
 // Wire up all event handlers
 function wireUpEventHandlers() {
   // Add task button
@@ -376,6 +459,9 @@ function wireUpEventHandlers() {
     currentEditingTaskId = null;
     UIManager.showCreateModal(handleTaskSubmit);
   });
+  
+  // Setup Demo Buttons
+  setupDemoButtons();
 
   // Cancel modal
   cancelBtn.addEventListener('click', () => {
@@ -505,11 +591,11 @@ function render() {
 }
 
 // Update motivation chart
-function updateChart() {
+async function updateChart() {
   const tasks = TaskManager.getAllTasks();
 
   if (MotivationChart && motivationCanvas) {
-    MotivationChart.renderChart(tasks);
+    await MotivationChart.renderChart(tasks);
 
     // Update stats
     if (avgMotivationEl) {
@@ -597,6 +683,10 @@ function validateForm() {
 async function handleTaskSubmit() {
   if (!validateForm()) return;
 
+  // Disable button to prevent double-click
+  createBtn.disabled = true;
+  createBtn.textContent = 'Saving...';
+
   const taskData = {
     text: modalTaskName.value.trim(),
     deadlineDate: deadlineDate.value,
@@ -606,20 +696,28 @@ async function handleTaskSubmit() {
     // Note: TMT values (expectancy, value, impulsivity, delay) are calculated automatically
   };
 
-  if (currentEditingTaskId) {
-    // Edit mode
-    await TaskManager.updateTask(currentEditingTaskId, taskData);
-    // Recalculate TMT values after edit
-    TaskManager.recalculateTMT(currentEditingTaskId);
-    currentEditingTaskId = null;
-  } else {
-    // Create mode
-    await TaskManager.createTask(taskData);
-  }
+  try {
+    if (currentEditingTaskId) {
+      // Edit mode
+      await TaskManager.updateTask(currentEditingTaskId, taskData);
+      // Recalculate TMT values after edit
+      TaskManager.recalculateTMT(currentEditingTaskId);
+      currentEditingTaskId = null;
+    } else {
+      // Create mode
+      await TaskManager.createTask(taskData);
+    }
 
-  UIManager.hideTaskModal();
-  render();
-  resetForm();
+    UIManager.hideTaskModal();
+    render();
+    resetForm();
+  } catch (error) {
+    console.error('Failed to save task:', error);
+    alert('Failed to save task. Please try again.');
+    // Re-enable button
+    createBtn.disabled = false;
+    createBtn.textContent = currentEditingTaskId ? 'Save Changes' : 'Create';
+  }
 }
 
 // Reset form

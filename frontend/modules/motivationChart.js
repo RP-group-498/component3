@@ -48,34 +48,71 @@ function setPeriod(period) {
 }
 
 /**
- * Render the chart
- * @param {Array} tasks - List of tasks
+ * Fetch aggregated history from backend
  */
-function renderChart(tasks) {
+async function fetchHistory() {
+    try {
+        const response = await fetch('http://localhost:8000/api/v1/tmt/history');
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                return data.history;
+            }
+        }
+    } catch (e) {
+        console.warn('[MotivationChart] Failed to fetch history:', e);
+    }
+    return null;
+}
+
+/**
+ * Render the chart
+ * @param {Array} tasks - List of tasks (optional if fetching from backend)
+ */
+async function renderChart(tasks) {
     if (!canvas || !ctx) return;
 
+    // Fetch full history from backend
+    const serverHistory = await fetchHistory();
+    
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Aggregate TMT history from all tasks
+    // Aggregate TMT history
     let dataPoints = [];
-    
-    tasks.forEach(task => {
-        if (task.tmtHistory && task.tmtHistory.length > 0) {
-            task.tmtHistory.forEach(entry => {
-                dataPoints.push({
-                    timestamp: entry.timestamp,
-                    value: entry.motivation
+
+    if (serverHistory && serverHistory.length > 0) {
+        // Use server data
+        dataPoints = serverHistory.map(h => ({
+            timestamp: h.timestamp,
+            value: h.motivation
+        }));
+    } else if (tasks) {
+        // Fallback to local task history
+        tasks.forEach(task => {
+            if (task.tmtHistory && task.tmtHistory.length > 0) {
+                task.tmtHistory.forEach(entry => {
+                    dataPoints.push({
+                        timestamp: entry.timestamp,
+                        value: entry.motivation
+                    });
                 });
-            });
-        } else {
-            // Use current values if no history
-            dataPoints.push({
-                timestamp: task.created, // Approximate
-                value: (task.expectancy * task.value) / (1 + task.impulsivity * task.delay) * 10 // Approximate scale
-            });
-        }
-    });
+            } else {
+                 // Use current values if no history
+                const E = (task.expectancy || 5) / 10;
+                const V = (task.value || 5) / 10;
+                const I = (task.impulsivity || task.impulsiveness || 5) / 10;
+                const D = (task.delay || 5) / 10;
+                
+                const motivation = (E * V) / (1 + I * D) * 10;
+
+                dataPoints.push({
+                    timestamp: task.created || Date.now(),
+                    value: motivation
+                });
+            }
+        });
+    }
 
     // Filter by period
     const now = Date.now();
@@ -224,7 +261,7 @@ function downloadCSV(tasks) {
             ? task.tmtHistory[task.tmtHistory.length - 1].motivation 
             : 0;
             
-        csvContent += `${task.id},"${task.text}",${task.status},${task.expectancy},${task.value},${task.impulsivity},${task.delay},${lastMot}\n";
+        csvContent += `${task.id},"${task.text}",${task.status},${task.expectancy},${task.value},${task.impulsivity},${task.delay},${lastMot}\n`;
     });
     
     const encodedUri = encodeURI(csvContent);

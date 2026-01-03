@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import settings
 from database import db
-from routers import tasks, events, tmt
+from routers import tasks, events, tmt, interventions
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -34,6 +34,7 @@ async def shutdown_db_client():
 app.include_router(tasks.router, prefix=f"{settings.API_V1_PREFIX}/tasks", tags=["tasks"])
 app.include_router(tmt.router, prefix=f"{settings.API_V1_PREFIX}/tmt", tags=["tmt"])
 app.include_router(events.router, prefix=f"{settings.API_V1_PREFIX}/events", tags=["events"])
+app.include_router(interventions.router, prefix=f"{settings.API_V1_PREFIX}/interventions", tags=["interventions"])
 
 
 @app.get("/")

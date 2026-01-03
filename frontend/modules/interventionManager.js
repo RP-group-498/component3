@@ -1,9 +1,11 @@
 /**
  * Intervention Manager
  * - Detects Motivation Drops based on TMT history
- * - Suggests Interventions (Rules-based initially, extensible for ML)
+ * - Suggests Interventions (ML-driven via Backend)
  * - Tracks effectiveness for future ML training
  */
+
+const BACKEND_URL = 'http://localhost:8000/api/v1';
 
 const INTERVENTION_TYPES = {
     NOTIFICATION: 'notification',
@@ -11,10 +13,12 @@ const INTERVENTION_TYPES = {
 };
 
 const STRATEGIES = {
-    TWO_MINUTE_RULE: '2_minute_rule',
+    TWO_MINUTE_RULE: 'two_minute_rule',
     POMODORO: 'pomodoro',
-    BREAK_DOWN: 'break_down',
-    JUST_START: 'just_start'
+    BREATHING: 'breathing',
+    REFRAMING: 'reframing',
+    BREAK: 'break',
+    NOTIFICATION: 'notification'
 };
 
 const InterventionManager = {
@@ -25,7 +29,7 @@ const InterventionManager = {
      * @param {Object} oldTMT - Previous TMT values
      * @param {Object} newTMT - Current TMT values
      */
-    analyzeDrop(task, oldTMT, newTMT) {
+    async analyzeDrop(task, oldTMT, newTMT) {
         if (!oldTMT || !newTMT) return;
 
         const oldMot = oldTMT.motivation;
@@ -39,9 +43,9 @@ const InterventionManager = {
         const LARGE_DROP_THRESHOLD = 1.5; // e.g., 6.0 -> 4.5
 
         if (drop >= LARGE_DROP_THRESHOLD) {
-            this.triggerIntervention(task, 'large_drop');
+            await this.triggerIntervention(task, 'large_drop');
         } else if (drop >= SMALL_DROP_THRESHOLD) {
-            this.triggerIntervention(task, 'small_drop');
+            await this.triggerIntervention(task, 'small_drop');
         }
     },
 
@@ -49,34 +53,86 @@ const InterventionManager = {
      * Trigger an intervention based on the type of drop
      * @param {Object} task 
      * @param {string} triggerType 
-     * @param {number} score - Optional score associated with the trigger
      */
-    triggerIntervention(task, triggerType, score = 0) {
+    async triggerIntervention(task, triggerType) {
         console.log(`[InterventionManager] Triggering intervention for ${task.text} (${triggerType})`);
 
-        // Heuristic Logic (Placeholder for ML Model)
-        // Future: const { type, strategy } = await ML.predictBestIntervention(task, userProfile);
+        try {
+            // Prepare context for ML model
+            const context = {
+                task_id: task.id,
+                tmt_scores: {
+                    expectancy: task.expectancy || 0.5,
+                    value: task.value || 0.5,
+                    impulsiveness: task.impulsivity || 0.5, // Note: frontend uses 'impulsivity', backend 'impulsiveness'
+                    delay: task.delay || 0.5,
+                    motivation: task.tmtScore || 0.5
+                },
+                time_of_day_hour: new Date().getHours(),
+                day_of_week: new Date().getDay(),
+                session_duration_minutes: TaskManager.getSessionDuration(task.id) || 0,
+                time_since_last_break_minutes: TaskManager.getTimeSinceLastBreak(task.id) || 0,
+                recent_procrastination_count: task.procrastinationCount || 0
+            };
 
+            // Call Backend ML Service
+            const response = await fetch(`${BACKEND_URL}/interventions/suggest`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(context)
+            });
+
+            if (!response.ok) throw new Error('Backend error');
+
+            const proposal = await response.json();
+            
+            // Map backend proposal to UI
+            this.handleProposal(task, proposal, triggerType);
+
+        } catch (error) {
+            console.warn('[InterventionManager] Backend unavailable, using local heuristics:', error);
+            this.fallbackHeuristics(task, triggerType);
+        }
+    },
+
+    /**
+     * Handle the proposal returned from the backend
+     */
+    handleProposal(task, proposal, triggerType) {
+        const { id, type, message } = proposal;
+
+        // Store intervention ID for feedback
+        this.currentInterventionId = id;
+        this.currentInterventionStartMotivation = task.tmtScore || 0;
+
+        if (type === 'notification') {
+            InterventionUI.showNotification("Focus Nudge", message);
+            this.logIntervention(task.id, triggerType, 'notification', 'notification', id);
+        } else {
+            // All other types show as a modal
+            InterventionUI.showInterventionModal(type, { 
+                title: "Suggestion", 
+                body: message, 
+                taskId: task.id,
+                interventionId: id 
+            });
+            this.logIntervention(task.id, triggerType, 'modal', type, id);
+        }
+    },
+
+    /**
+     * Fallback logic when backend is down
+     */
+    fallbackHeuristics(task, triggerType) {
         let type, strategy, title, body;
+        
+        // Simple local ID generation
+        const localId = 'local_' + Date.now();
 
         if (triggerType === 'small_drop') {
-            type = INTERVENTION_TYPES.NOTIFICATION;
-            title = "Keep Going!";
-            body = `You're doing great on "${task.text}". Just 5 more minutes?`;
-
-            // Simple system notification
-            InterventionUI.showNotification(title, body);
-
-            // Log for ML
-            this.logIntervention(task.id, 'small_drop', type, 'simple_nudge');
-
-        } else if (triggerType === 'large_drop') {
-            type = INTERVENTION_TYPES.MODAL;
-
-            // Choose strategy based on TMT component analysis (rudimentary)
-            // If Impulsiveness is high -> Pomodoro
-            // If Expectancy is low -> Break Down or 2-Min Rule
-
+            InterventionUI.showNotification("Keep Going!", `You're doing great on "${task.text}". Just 5 more minutes?`);
+            this.logIntervention(task.id, triggerType, 'notification', 'simple_nudge', localId);
+        } else {
             if (task.impulsivity > 7) {
                 strategy = STRATEGIES.POMODORO;
                 title = "Distracted?";
@@ -84,31 +140,35 @@ const InterventionManager = {
             } else {
                 strategy = STRATEGIES.TWO_MINUTE_RULE;
                 title = "Feeling Stuck?";
-                body = "Try the 2-Minute Rule: Do the task for just 2 minutes. Usually, that's enough to get flowing.";
+                body = "Try the 2-Minute Rule: Do the task for just 2 minutes.";
             }
 
-            InterventionUI.showInterventionModal(strategy, { title, body, taskId: task.id });
-            // Log for ML
-            this.logIntervention(task.id, 'large_drop', type, strategy);
+            InterventionUI.showInterventionModal(strategy, { 
+                title, 
+                body, 
+                taskId: task.id,
+                interventionId: localId
+            });
+            
+            this.logIntervention(task.id, triggerType, 'modal', strategy, localId);
         }
     },
 
     /**
-     * Log intervention triggering for future ML training
+     * Log intervention triggering 
      */
-    logIntervention(taskId, trigger, type, strategy) {
-        // In a real app, this would send data to a backend or analytics service
-        // For now, we'll store it in the task's history for local ML
+    logIntervention(taskId, trigger, type, strategy, interventionId) {
         if (typeof TaskManager !== 'undefined') {
             const task = TaskManager.getTaskById(taskId);
             if (task) {
                 if (!task.interventionHistory) task.interventionHistory = [];
                 task.interventionHistory.push({
+                    interventionId,
                     timestamp: Date.now(),
                     trigger,
                     type,
                     strategy,
-                    outcome: 'pending' // pending until user interaction
+                    outcome: 'pending'
                 });
                 TaskManager.saveTasks();
             }
@@ -116,18 +176,41 @@ const InterventionManager = {
     },
 
     /**
-     * Record the outcome of an intervention
+     * Record the outcome of an intervention and send to backend
      * @param {string} taskId 
-     * @param {string} outcome - 'accepted', 'rejected', 'ignored', 'success'
+     * @param {string} outcome - 'accepted', 'rejected'
+     * @param {string} interventionId - ID from the backend
      */
-    recordOutcome(taskId, outcome) {
+    async recordOutcome(taskId, outcome, interventionId) {
         const task = TaskManager.getTaskById(taskId);
-        if (task && task.interventionHistory && task.interventionHistory.length > 0) {
-            // Update the last intervention
-            const lastIntervention = task.interventionHistory[task.interventionHistory.length - 1];
-            lastIntervention.outcome = outcome;
-            TaskManager.saveTasks();
-            console.log(`[InterventionManager] Outcome recorded: ${outcome}`);
+        
+        // 1. Update local history
+        if (task && task.interventionHistory) {
+            const entry = task.interventionHistory.find(i => i.interventionId === interventionId);
+            if (entry) {
+                entry.outcome = outcome;
+                TaskManager.saveTasks();
+            }
+        }
+        
+        // 2. Send feedback to backend
+        try {
+            // Get current motivation to calculate delta
+            // Note: In a real app, the backend might query the motivation state directly or we pass it
+            const currentMotivation = task.tmtScore || 0;
+            
+            await fetch(`${BACKEND_URL}/interventions/feedback`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    intervention_id: interventionId,
+                    accepted: outcome === 'accepted',
+                    motivation_after_5min: currentMotivation // We send current state, backend compares
+                })
+            });
+            console.log(`[InterventionManager] Feedback sent for ${interventionId}`);
+        } catch (e) {
+            console.warn('[InterventionManager] Failed to send feedback:', e);
         }
     }
 };

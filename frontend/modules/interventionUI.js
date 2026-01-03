@@ -56,12 +56,12 @@ const InterventionUI = {
 
         // Event Listeners
         document.getElementById('interventionDismiss').addEventListener('click', () => {
-            InterventionManager.recordOutcome(content.taskId, 'rejected');
+            InterventionManager.recordOutcome(content.taskId, 'rejected', content.interventionId);
             this.closeModal();
         });
 
         document.getElementById('interventionAction').addEventListener('click', () => {
-            InterventionManager.recordOutcome(content.taskId, 'accepted');
+            InterventionManager.recordOutcome(content.taskId, 'accepted', content.interventionId);
             this.handleStrategyAction(strategy, content.taskId);
             this.closeModal();
         });
