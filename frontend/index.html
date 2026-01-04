@@ -13,39 +13,6 @@
   <div class="container">
     <h1>Focus</h1>
 
-    <!-- Motivation Chart -->
-    <div class="chart-section">
-      <div class="chart-header">
-        <h2><i data-lucide="trending-up"></i> Motivation Trends</h2>
-        <div class="chart-stats">
-          <div class="stat-item">
-            <span class="stat-label">Avg Motivation:</span>
-            <span id="avgMotivation" class="stat-value">-</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">Trend:</span>
-            <span id="motivationTrend" class="stat-value">-</span>
-          </div>
-          <button id="downloadCsvBtn" class="download-btn" title="Download CSV for selected period">
-            <i data-lucide="download"></i> Download CSV
-          </button>
-        </div>
-      </div>
-      <div class="period-selector">
-        <button class="period-btn" data-period="5m">5m</button>
-        <button class="period-btn" data-period="1h">1h</button>
-        <button class="period-btn" data-period="6h">6h</button>
-        <button class="period-btn active" data-period="1d">1D</button>
-        <button class="period-btn" data-period="3d">3D</button>
-        <button class="period-btn" data-period="1w">1W</button>
-        <button class="period-btn" data-period="1M">1M</button>
-        <button class="period-btn" data-period="max">MAX</button>
-      </div>
-      <div class="chart-container">
-        <canvas id="motivationCanvas"></canvas>
-      </div>
-    </div>
-
     <!-- Tasks Section -->
     <div class="tasks-section">
       <div class="tasks-header">
@@ -200,7 +167,6 @@
   <script src="modules/interventionManager.js"></script>
   <script src="modules/taskManager.js"></script>
   <script src="modules/uiManager.js"></script>
-  <script src="modules/motivationChart.js"></script>
   <script src="renderer.js"></script>
 
   <!-- Initialize Lucide Icons -->

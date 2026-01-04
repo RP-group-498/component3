@@ -43,11 +43,6 @@ const deadlineDate = document.getElementById('deadlineDate');
 const deadlineTime = document.getElementById('deadlineTime');
 const category = document.getElementById('category');
 
-// Chart Elements
-const motivationCanvas = document.getElementById('motivationCanvas');
-const avgMotivationEl = document.getElementById('avgMotivation');
-const motivationTrendEl = document.getElementById('motivationTrend');
-
 let currentEditingTaskId = null;
 let currentDeletingTaskId = null;
 let currentTaskFilter = 'all'; // Task filter state
@@ -130,35 +125,6 @@ async function init() {
     console.error('[App] Error wiring event handlers:', e);
   }
 
-  // Initialize motivation chart
-  try {
-    if (motivationCanvas && typeof MotivationChart !== 'undefined') {
-      MotivationChart.initChart(motivationCanvas);
-      updateChart();
-    } else {
-        console.warn('[App] MotivationChart not loaded or canvas missing');
-    }
-  } catch (e) {
-    console.error('[App] Error initializing chart:', e);
-  }
-
-  // Setup period selector buttons
-  const periodButtons = document.querySelectorAll('.period-btn');
-  periodButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      // Remove active class from all buttons
-      periodButtons.forEach(b => b.classList.remove('active'));
-      // Add active class to clicked button
-      btn.classList.add('active');
-      // Update chart period
-      const period = btn.dataset.period;
-      if (typeof MotivationChart !== 'undefined') {
-          MotivationChart.setPeriod(period);
-          updateChart();
-      }
-    });
-  });
-
   // Setup task filter tabs
   const tabButtons = document.querySelectorAll('.tab-btn');
   tabButtons.forEach(btn => {
@@ -173,22 +139,7 @@ async function init() {
     });
   });
 
-  // Setup CSV download button
-  const downloadCsvBtn = document.getElementById('downloadCsvBtn');
-  if (downloadCsvBtn) {
-    downloadCsvBtn.addEventListener('click', () => {
-      if (typeof TaskManager !== 'undefined' && typeof MotivationChart !== 'undefined') {
-        const tasks = TaskManager.getAllTasks();
-        if (tasks.length === 0) {
-          alert('No tasks available to download. Create some tasks first!');
-          return;
-        }
-        MotivationChart.downloadCSV(tasks);
-      }
-    });
-  }
-
-  // Setup real-time TMT recalculation and chart polling (every 60 seconds)
+  // Setup real-time TMT recalculation (every 60 seconds)
   setInterval(() => {
     if (typeof TaskManager !== 'undefined') {
         // Recalculate TMT for all tasks (Delay changes as time passes)
@@ -199,9 +150,7 @@ async function init() {
         }
         });
 
-        // Update chart with new TMT values
-        updateChart();
-        console.log('[App] TMT recalculated and chart updated');
+        console.log('[App] TMT recalculated');
     }
   }, 60000); // 60 seconds
 
@@ -496,56 +445,10 @@ function render() {
   }
 
   UIManager.renderTaskList(tasks);
-  updateChart();
 
   // Reinitialize Lucide icons after rendering
   if (typeof lucide !== 'undefined') {
     lucide.createIcons();
-  }
-}
-
-// Update motivation chart
-function updateChart() {
-  const tasks = TaskManager.getAllTasks();
-
-  if (MotivationChart && motivationCanvas) {
-    MotivationChart.renderChart(tasks);
-
-    // Update stats
-    if (avgMotivationEl) {
-      const avg = MotivationChart.getAverageMotivation(tasks);
-      avgMotivationEl.textContent = avg > 0 ? avg : '-';
-
-      // Toggle red theme based on motivation
-      if (avg > 0 && avg <= 3) {
-        document.body.classList.add('red-theme');
-      } else {
-        document.body.classList.remove('red-theme');
-      }
-    }
-
-    if (motivationTrendEl) {
-      const trend = MotivationChart.getMotivationTrend(tasks);
-      const trendIcons = {
-        increasing: '<i data-lucide="trending-up"></i> Rising',
-        decreasing: '<i data-lucide="trending-down"></i> Falling',
-        stable: '<i data-lucide="minus"></i> Stable'
-      };
-      motivationTrendEl.innerHTML = tasks.length >= 2 ? trendIcons[trend] : '-';
-
-      // Color code the trend
-      const trendColors = {
-        increasing: '#10b981',
-        decreasing: '#ef4444',
-        stable: '#f59e0b'
-      };
-      motivationTrendEl.style.color = trendColors[trend] || '#6b7280';
-
-      // Reinitialize icons for trend display
-      if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-      }
-    }
   }
 }
 
