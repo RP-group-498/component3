@@ -18,6 +18,8 @@ const STRATEGIES = {
 };
 
 const InterventionManager = {
+    // Track pending intervention timers
+    _interventionTimers: {},
 
     /**
      * Analyze if a drop in motivation warrants an intervention
@@ -133,6 +135,18 @@ const InterventionManager = {
                     outcome: 'pending' // pending until user interaction
                 });
                 TaskManager.saveTasks();
+
+                // Clear any existing timer for this task
+                if (this._interventionTimers[taskId]) {
+                    clearTimeout(this._interventionTimers[taskId]);
+                }
+
+                // Set 1-minute timeout - if user doesn't interact, count as rejected
+                this._interventionTimers[taskId] = setTimeout(() => {
+                    console.log(`[InterventionManager] Intervention timeout for task ${taskId} - logging as ignored`);
+                    this.recordOutcome(taskId, 'ignored');
+                    delete this._interventionTimers[taskId];
+                }, 60000); // 60 seconds = 1 minute
             }
         }
     },
@@ -143,6 +157,12 @@ const InterventionManager = {
      * @param {string} outcome - 'accepted', 'rejected', 'ignored', 'success'
      */
     recordOutcome(taskId, outcome) {
+        // Clear the timeout timer if user interacted before 1 minute
+        if (this._interventionTimers[taskId]) {
+            clearTimeout(this._interventionTimers[taskId]);
+            delete this._interventionTimers[taskId];
+        }
+
         const task = TaskManager.getTaskById(taskId);
         if (task && task.interventionHistory && task.interventionHistory.length > 0) {
             // Update the last intervention
@@ -151,9 +171,11 @@ const InterventionManager = {
             TaskManager.saveTasks();
 
             // Log to backend for ML training
-            this.logInterventionToBackend(taskId, lastIntervention.strategy, outcome === 'accepted');
+            // accepted = true only if outcome is 'accepted', false for 'rejected' or 'ignored'
+            const accepted = (outcome === 'accepted');
+            this.logInterventionToBackend(taskId, lastIntervention.strategy, accepted);
 
-            console.log(`[InterventionManager] Outcome recorded: ${outcome}`);
+            console.log(`[InterventionManager] Outcome recorded: ${outcome}, accepted: ${accepted}`);
         }
     },
 

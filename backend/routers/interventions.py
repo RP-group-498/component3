@@ -13,7 +13,7 @@ async def suggest_intervention(task_id: str, trigger_context: Dict):
     Suggest an intervention for a specific task based on current state.
     trigger_context expects: { "trigger_type": "small_drop" | "large_drop" }
     """
-    task = await task_service.get_task(task_id)
+    task = await task_service.get_task_by_id(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
@@ -28,7 +28,7 @@ async def log_intervention(task_id: str, data: Dict):
     """
     Log an intervention outcome (Accepted/Rejected) for ML training.
     """
-    task = await task_service.get_task(task_id)
+    task = await task_service.get_task_by_id(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
         
