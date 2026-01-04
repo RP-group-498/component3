@@ -1,6 +1,7 @@
 """
 Task management API router
 """
+import time
 from fastapi import APIRouter, HTTPException, status
 from typing import List
 from models.task import (
@@ -9,7 +10,9 @@ from models.task import (
     TaskUpdate,
     TaskResponse,
     TaskListResponse,
-    SubtaskCreate
+    SubtaskCreate,
+    InterventionLogRequest,
+    InterventionHistory
 )
 from services.task_service import task_service
 
@@ -153,6 +156,46 @@ async def abandon_task(task_id: str):
         success=True,
         task=task,
         message="Task marked as abandoned"
+    )
+
+
+@router.post("/{task_id}/interventions/log", response_model=TaskResponse)
+async def log_intervention(task_id: str, intervention_data: InterventionLogRequest):
+    """Log intervention display and user response for ML training"""
+    task = await task_service.get_task_by_id(task_id)
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Task {task_id} not found"
+        )
+
+    # Log to ML training collection
+    from services.ml_training_service import ml_training_service
+    await ml_training_service.log_intervention_event(
+        task=task,
+        intervention_type=intervention_data.intervention_type,
+        intervention_accepted=intervention_data.intervention_accepted,
+        session_duration_minutes=intervention_data.session_duration_minutes
+    )
+
+    # Also update task's interventionHistory (preserve existing behavior)
+    intervention_entry = InterventionHistory(
+        timestamp=int(time.time() * 1000),
+        type=intervention_data.intervention_type,
+        reason="intervention_displayed",
+        message=f"Intervention {intervention_data.intervention_type} {'accepted' if intervention_data.intervention_accepted else 'rejected'}"
+    )
+
+    result = await task_service.collection.find_one_and_update(
+        {"id": task_id},
+        {"$push": {"interventionHistory": intervention_entry.model_dump()}},
+        return_document=True
+    )
+
+    return TaskResponse(
+        success=True,
+        task=Task(**result),
+        message="Intervention logged successfully"
     )
 
 

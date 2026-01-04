@@ -80,13 +80,20 @@ class TaskUpdate(BaseModel):
     category: Optional[str] = None
     status: Optional[Literal["pending", "started", "paused", "completed", "abandoned"]] = None
     done: Optional[bool] = None
-    
+
     # TMT values update
     expectancy: Optional[float] = None
     value: Optional[float] = None
     impulsivity: Optional[float] = None
     delay: Optional[float] = None
     tmtHistory: Optional[List[TMTHistory]] = None
+
+
+class InterventionLogRequest(BaseModel):
+    """Request to log intervention display and response"""
+    intervention_type: Literal["motivation_boost", "task_suggestion", "break_reminder"]
+    intervention_accepted: bool
+    session_duration_minutes: int
 
 
 class Task(TaskBase):

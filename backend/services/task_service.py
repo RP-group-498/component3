@@ -163,9 +163,19 @@ class TaskService:
             {"$set": updates},
             return_document=True
         )
-        
+
         if result:
-            return Task(**result)
+            updated_task = Task(**result)
+
+            # Log ML training data
+            from services.ml_training_service import ml_training_service
+            await ml_training_service.log_session_event(
+                task=updated_task,
+                event_type="session_start",
+                session_duration_minutes=0
+            )
+
+            return updated_task
         return None
     
     async def pause_task(self, task_id: str) -> Optional[Task]:
@@ -198,9 +208,19 @@ class TaskService:
             },
             return_document=True
         )
-        
+
         if result:
-            return Task(**result)
+            updated_task = Task(**result)
+
+            # Log ML training data
+            from services.ml_training_service import ml_training_service
+            await ml_training_service.log_session_event(
+                task=updated_task,
+                event_type="session_pause",
+                session_duration_minutes=int(session_duration)
+            )
+
+            return updated_task
         return None
     
     async def complete_task(self, task_id: str) -> Optional[Task]:
@@ -218,9 +238,19 @@ class TaskService:
             {"$set": {"status": "completed", "done": True}},
             return_document=True
         )
-        
+
         if result:
-            return Task(**result)
+            updated_task = Task(**result)
+
+            # Log ML training data
+            from services.ml_training_service import ml_training_service
+            await ml_training_service.log_session_event(
+                task=updated_task,
+                event_type="session_complete",
+                session_duration_minutes=0  # Already paused
+            )
+
+            return updated_task
         return None
     
     async def abandon_task(self, task_id: str) -> Optional[Task]:

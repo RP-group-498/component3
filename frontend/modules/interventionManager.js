@@ -117,7 +117,7 @@ const InterventionManager = {
 
     /**
      * Record the outcome of an intervention
-     * @param {string} taskId 
+     * @param {string} taskId
      * @param {string} outcome - 'accepted', 'rejected', 'ignored', 'success'
      */
     recordOutcome(taskId, outcome) {
@@ -127,7 +127,56 @@ const InterventionManager = {
             const lastIntervention = task.interventionHistory[task.interventionHistory.length - 1];
             lastIntervention.outcome = outcome;
             TaskManager.saveTasks();
+
+            // Log to backend for ML training
+            this.logInterventionToBackend(taskId, lastIntervention.strategy, outcome === 'accepted');
+
             console.log(`[InterventionManager] Outcome recorded: ${outcome}`);
+        }
+    },
+
+    /**
+     * Log intervention to backend for ML training
+     * @param {string} taskId
+     * @param {string} frontendStrategy
+     * @param {boolean} accepted
+     */
+    async logInterventionToBackend(taskId, frontendStrategy, accepted) {
+        // Map frontend strategies to backend intervention types
+        const typeMapping = {
+            '2_minute_rule': 'task_suggestion',
+            'pomodoro': 'break_reminder',
+            'just_start': 'task_suggestion',
+            'simple_nudge': 'motivation_boost',
+            'break_down': 'task_suggestion'
+        };
+
+        const interventionType = typeMapping[frontendStrategy] || 'motivation_boost';
+
+        // Calculate current session duration
+        const task = TaskManager.getTaskById(taskId);
+        const sessionDuration = task.currentSessionStart
+            ? Math.floor((Date.now() - task.currentSessionStart) / 1000 / 60)
+            : 0;
+
+        try {
+            const response = await fetch(`http://localhost:8000/api/v1/tasks/${taskId}/interventions/log`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    intervention_type: interventionType,
+                    intervention_accepted: accepted,
+                    session_duration_minutes: sessionDuration
+                })
+            });
+
+            if (!response.ok) {
+                console.error('Failed to log intervention to backend');
+            } else {
+                console.log(`[InterventionManager] Logged to backend: ${interventionType}, accepted: ${accepted}`);
+            }
+        } catch (error) {
+            console.error('Error logging intervention:', error);
         }
     }
 };
