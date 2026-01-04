@@ -7,39 +7,44 @@
 const InterventionUI = {
 
     /**
-     * Show a system notification
-     * @param {string} title 
-     * @param {string} body 
+     * Show a system notification with optional action buttons
+     * @param {string} title
+     * @param {string} body
+     * @param {Array} actions - Optional action buttons [{ type: 'accept', text: 'Start' }, { type: 'reject', text: 'Skip' }]
+     * @param {Object} metadata - Optional metadata (taskId, interventionId, strategy)
      */
-    showNotification(title, body) {
+    showNotification(title, body, actions = null, metadata = null) {
         if (typeof require !== 'undefined') {
             const { ipcRenderer } = require('electron');
-            ipcRenderer.send('notify:intervention', { title, body });
+            ipcRenderer.send('notify:intervention', {
+                title,
+                body,
+                actions,
+                metadata
+            });
         } else if ('Notification' in window && Notification.permission === 'granted') {
-            // Browser fallback
+            // Browser fallback (no action support)
             new Notification(title, { body });
         }
     },
 
     /**
      * Show an in-app modal with an intervention strategy
-     * @param {string} strategy - 'pomodoro', '2_minute_rule', etc.
-     * @param {Object} content - { title, body, taskId }
+     * @param {string} strategy - 'pomodoro', 'two_minute_rule', 'breathing', 'reframing', 'break'
+     * @param {Object} content - { title, body, taskId, interventionId }
      */
     showInterventionModal(strategy, content) {
         const modal = document.createElement('div');
         modal.className = 'intervention-modal-backdrop';
         modal.id = 'activeInterventionModal';
 
-        let actionButtonText = "Let's do it";
-        if (strategy === 'pomodoro') actionButtonText = "Start Timer";
-        if (strategy === '2_minute_rule') actionButtonText = "Start 2 Minutes";
-        if (strategy === 'just_start') actionButtonText = "Start Small";
+        // Get icon and button text for each strategy
+        const strategyConfig = this.getStrategyConfig(strategy);
 
         modal.innerHTML = `
             <div class="intervention-modal animate-pop-in">
                 <div class="intervention-header">
-                    <span class="intervention-icon">💡</span>
+                    <span class="intervention-icon">${strategyConfig.icon}</span>
                     <h3>${content.title}</h3>
                 </div>
                 <div class="intervention-body">
@@ -47,7 +52,7 @@ const InterventionUI = {
                 </div>
                 <div class="intervention-actions">
                     <button class="btn btn-secondary" id="interventionDismiss">Skip</button>
-                    <button class="btn btn-primary" id="interventionAction">${actionButtonText}</button>
+                    <button class="btn btn-primary" id="interventionAction">${strategyConfig.actionText}</button>
                 </div>
             </div>
         `;
@@ -68,6 +73,72 @@ const InterventionUI = {
     },
 
     /**
+     * Get configuration for each strategy type
+     * @param {string} strategy
+     * @returns {Object} { icon, actionText, actions }
+     */
+    getStrategyConfig(strategy) {
+        const configs = {
+            'pomodoro': {
+                icon: '🍅',
+                actionText: 'Start 25min Timer',
+                actions: [
+                    { type: 'accept', text: 'Start Timer' },
+                    { type: 'reject', text: 'Skip' }
+                ]
+            },
+            'two_minute_rule': {
+                icon: '⏱️',
+                actionText: 'Start 2 Minutes',
+                actions: [
+                    { type: 'accept', text: 'Start 2 Min' },
+                    { type: 'reject', text: 'Skip' }
+                ]
+            },
+            'breathing': {
+                icon: '🧘',
+                actionText: 'Start Breathing',
+                actions: [
+                    { type: 'accept', text: 'Start' },
+                    { type: 'reject', text: 'Skip' }
+                ]
+            },
+            'reframing': {
+                icon: '💭',
+                actionText: 'I Got This!',
+                actions: [
+                    { type: 'accept', text: 'Got It!' },
+                    { type: 'reject', text: 'Skip' }
+                ]
+            },
+            'break': {
+                icon: '☕',
+                actionText: 'Take a Break',
+                actions: [
+                    { type: 'accept', text: 'Take Break' },
+                    { type: 'reject', text: 'Continue' }
+                ]
+            },
+            'notification': {
+                icon: '💡',
+                actionText: 'Got It!',
+                actions: [
+                    { type: 'accept', text: 'OK' }
+                ]
+            }
+        };
+
+        return configs[strategy] || {
+            icon: '💡',
+            actionText: "Let's do it",
+            actions: [
+                { type: 'accept', text: 'OK' },
+                { type: 'reject', text: 'Skip' }
+            ]
+        };
+    },
+
+    /**
      * Close the modal
      */
     closeModal() {
@@ -81,17 +152,40 @@ const InterventionUI = {
      * Handle the specific action for a strategy
      */
     handleStrategyAction(strategy, taskId) {
-        if (strategy === 'pomodoro') {
-            // Start Pomodoro logic (reuse TaskManager startTask)
-            // Ideally set a timer UI, but for now just ensure task is started
+        // Start the task if not already started
+        const task = TaskManager.getTaskById(taskId);
+        if (task && task.status !== 'started') {
             window.handleStartTask(taskId);
-            alert("Pomodoro timer started! (Simulated)");
-        } else if (strategy === '2_minute_rule') {
-            window.handleStartTask(taskId);
-            alert("2 Minute timer started! Just focus for 2 mins.");
-        } else if (strategy === 'just_start') {
-            window.handleStartTask(taskId);
-            alert("Great! Just focus on one tiny part of the task.");
+        }
+
+        // Strategy-specific actions
+        switch(strategy) {
+            case 'pomodoro':
+                this.showNotification('🍅 Pomodoro Started', 'Focus for 25 minutes, then take a 5-minute break!');
+                // TODO: Implement actual 25-minute timer
+                break;
+
+            case 'two_minute_rule':
+                this.showNotification('⏱️ 2-Minute Rule Active', 'Just 2 minutes of focus. You can do this!');
+                // TODO: Implement 2-minute timer
+                break;
+
+            case 'breathing':
+                this.showNotification('🧘 Breathing Exercise', 'Breathe in (4s), hold (4s), breathe out (4s). Repeat 3 times.');
+                // TODO: Show breathing animation/timer
+                break;
+
+            case 'reframing':
+                this.showNotification('💭 Positive Mindset', 'Focus on the value this task brings to your goals!');
+                break;
+
+            case 'break':
+                this.showNotification('☕ Break Time', 'Take 5 minutes to stretch, hydrate, or relax.');
+                // TODO: Implement break timer
+                break;
+
+            default:
+                this.showNotification('✅ Let\'s Go!', 'Time to focus and make progress!');
         }
     }
 };

@@ -404,16 +404,125 @@ function stopMainNotifier() {
   }
 }
 
-function showMainNotification(title, body) {
+function showMainNotification(title, body, actions = null, metadata = null) {
   try {
-    const n = new Notification({ title, body });
-    n.show();
+    console.log('[Notification] Creating notification:', { title, actions, metadata });
+
+    const notificationOptions = {
+      title,
+      body,
+      silent: false,
+      timeoutType: 'never' // Keep notification visible until user interacts
+    };
+
+    // Platform-specific action button support
+    if (actions && Array.isArray(actions) && actions.length > 0) {
+      if (process.platform === 'darwin') {
+        // macOS: Use hasReply for better compatibility
+        // Will show "Reply" button that opens app with action dialog
+        notificationOptions.hasReply = true;
+        notificationOptions.replyPlaceholder = actions.map(a => a.text).join(' / ');
+        console.log('[Notification] macOS: Using hasReply with actions:', actions);
+      } else {
+        // Windows/Linux: Use action buttons directly
+        notificationOptions.actions = actions;
+        console.log('[Notification] Windows/Linux: Using actions:', actions);
+      }
+    }
+
+    const n = new Notification(notificationOptions);
+
+    // Handle notification click (body click)
     n.on('click', () => {
+      console.log('[Notification] Notification body clicked');
       const w = BrowserWindow.getAllWindows()[0];
-      if (w) w.show();
+      if (w) {
+        w.show();
+        w.focus();
+
+        // On click, show action dialog in app
+        if (actions && metadata) {
+          w.webContents.send('intervention-show-dialog', {
+            actions: actions,
+            metadata: metadata
+          });
+        }
+      }
     });
+
+    // Handle reply (macOS)
+    n.on('reply', (event, reply) => {
+      console.log('[Notification] Reply received:', reply);
+
+      const w = BrowserWindow.getAllWindows()[0];
+      if (w) {
+        // Determine action based on reply text
+        let actionType = 'accept';
+        const replyLower = reply.toLowerCase();
+
+        if (actions) {
+          // Check if reply matches any action text
+          for (const action of actions) {
+            if (replyLower.includes(action.text.toLowerCase())) {
+              actionType = action.type;
+              break;
+            }
+          }
+
+          // Common keywords for rejection
+          if (replyLower.includes('skip') || replyLower.includes('no') ||
+              replyLower.includes('later') || replyLower.includes('cancel')) {
+            actionType = 'reject';
+          }
+        }
+
+        console.log('[Notification] Resolved action:', actionType);
+
+        w.webContents.send('intervention-action', {
+          action: actionType,
+          metadata: metadata,
+          reply: reply
+        });
+        w.show();
+        w.focus();
+      }
+    });
+
+    // Handle action button clicks (Windows/Linux)
+    n.on('action', (event, index) => {
+      console.log(`[Notification] Action button clicked at index: ${index}`);
+
+      // Safety check
+      if (!actions || !actions[index]) {
+        console.error('[Notification] Invalid action index:', index);
+        return;
+      }
+
+      const selectedAction = actions[index];
+      console.log('[Notification] Selected action:', selectedAction);
+
+      const w = BrowserWindow.getAllWindows()[0];
+      if (w) {
+        // Send the action response back to renderer
+        w.webContents.send('intervention-action', {
+          action: selectedAction.type,
+          metadata: metadata
+        });
+        w.show();
+        w.focus();
+      }
+    });
+
+    // Handle notification close
+    n.on('close', () => {
+      console.log('[Notification] Notification closed');
+    });
+
+    n.show();
+    console.log('[Notification] Notification shown with platform:', process.platform);
+
   } catch (e) {
-    console.warn('Main notification failed', e);
+    console.error('[Notification] Error showing notification:', e);
   }
 }
 
@@ -426,8 +535,8 @@ ipcMain.on('notify:tasks', (event, tasks) => {
   }
 });
 
-ipcMain.on('notify:intervention', (event, { title, body }) => {
-  showMainNotification(title, body);
+ipcMain.on('notify:intervention', (event, { title, body, actions, metadata }) => {
+  showMainNotification(title, body, actions, metadata);
 });
 
 // --- Active Window Monitoring for Procrastination Detection ----------------

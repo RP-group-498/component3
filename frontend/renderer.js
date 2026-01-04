@@ -130,6 +130,9 @@ async function init() {
     console.error('[App] Error wiring event handlers:', e);
   }
 
+  // Setup intervention action handler (for notification button clicks)
+  setupInterventionActionHandler();
+
   // Initialize motivation chart
   try {
     if (motivationCanvas && typeof MotivationChart !== 'undefined') {
@@ -376,7 +379,7 @@ function setupActiveWindowListeners() {
 function setupDemoButtons() {
     console.log('[Demo] Setting up buttons...');
     const demoButtons = document.querySelectorAll('.demo-btn');
-    
+
     if (demoButtons.length === 0) {
         console.warn('[Demo] No demo buttons found in DOM');
         return;
@@ -385,65 +388,62 @@ function setupDemoButtons() {
     demoButtons.forEach(btn => {
         btn.addEventListener('click', () => {
             console.log('[Demo] Button clicked:', btn.dataset.strategy);
-            
+
             try {
                 if (typeof InterventionUI === 'undefined') {
                     alert('Error: InterventionUI module not loaded.');
                     return;
                 }
 
+                if (typeof InterventionManager === 'undefined') {
+                    alert('Error: InterventionManager module not loaded.');
+                    return;
+                }
+
                 const strategy = btn.dataset.strategy;
-                
-                // Safe task ID retrieval
+
+                // Safe task ID and task name retrieval
                 let taskId = 'demo_task_id';
+                let taskName = 'Demo Task';
+
                 if (typeof TaskManager !== 'undefined') {
                     const active = TaskManager.getActiveTask();
                     const all = TaskManager.getAllTasks();
-                    if (active) taskId = active.id;
-                    else if (all && all.length > 0) taskId = all[0].id;
+
+                    if (active) {
+                        taskId = active.id;
+                        taskName = active.text || 'Current Task';
+                    } else if (all && all.length > 0) {
+                        taskId = all[0].id;
+                        taskName = all[0].text || 'First Task';
+                    }
                 }
 
                 const mockInterventionId = 'demo_' + Date.now();
-                
-                if (strategy === 'notification') {
-                    InterventionUI.showNotification(
-                        "Focus Nudge", 
-                        "Hey! You seem a bit distracted. Let's get back to it."
-                    );
-                } else {
-                    let title = "Intervention";
-                    let body = "Let's try a strategy.";
-                    
-                    switch(strategy) {
-                        case 'pomodoro':
-                            title = "Distracted?";
-                            body = "Let's try a Pomodoro session. 25 minutes of focus, then a break.";
-                            break;
-                        case 'two_minute_rule':
-                            title = "Feeling Stuck?";
-                            body = "Try the 2-Minute Rule: Just commit to working for 2 minutes.";
-                            break;
-                        case 'breathing':
-                            title = "High Anxiety?";
-                            body = "Let's take a deep breath together. Box breathing: 4-4-4-4.";
-                            break;
-                        case 'reframing':
-                            title = "Low Value?";
-                            body = "Remember why this task matters to your long-term goals.";
-                            break;
-                        case 'break':
-                            title = "Fatigue Detected";
-                            body = "You've been working hard. Time for a 5-minute break?";
-                            break;
+
+                // Use InterventionManager's notification content generator
+                const notificationContent = InterventionManager.getNotificationContent(
+                    strategy,
+                    taskName
+                );
+
+                // Get action buttons for this strategy
+                const strategyConfig = InterventionUI.getStrategyConfig(strategy);
+
+                // Show system notification with action buttons (no modal!)
+                InterventionUI.showNotification(
+                    notificationContent.title,
+                    notificationContent.body,
+                    strategyConfig.actions,
+                    {
+                        taskId: taskId,
+                        interventionId: mockInterventionId,
+                        strategy: strategy
                     }
-                    
-                    InterventionUI.showInterventionModal(strategy, {
-                        title,
-                        body,
-                        taskId,
-                        interventionId: mockInterventionId
-                    });
-                }
+                );
+
+                console.log(`[Demo] Triggered ${strategy} intervention with action buttons`);
+
             } catch (e) {
                 console.error('[Demo] Error triggering intervention:', e);
                 alert('Demo Error: ' + e.message);
@@ -868,6 +868,212 @@ async function handleSubtaskSubmit() {
 }
 
 // Initialize on load
+// Setup handler for intervention action responses from notification buttons
+function setupInterventionActionHandler() {
+  if (typeof ipcRenderer !== 'undefined' && ipcRenderer) {
+    console.log('[App] Setting up intervention action handler...');
+
+    // Handle direct action responses (Windows/Linux action buttons or macOS reply)
+    ipcRenderer.on('intervention-action', (event, data) => {
+      console.log('[App] Intervention action received:', data);
+
+      const { action, metadata } = data;
+
+      if (!metadata) {
+        console.warn('[App] No metadata provided with action');
+        return;
+      }
+
+      const { taskId, interventionId, strategy } = metadata;
+
+      try {
+        // Get boolean value: true for accept, false for reject
+        const accepted = action === 'accept';
+        console.log(`[App] Intervention ${accepted ? 'ACCEPTED' : 'REJECTED'} (boolean: ${accepted})`);
+
+        // Record the outcome
+        if (accepted) {
+          console.log(`[App] User accepted ${strategy} intervention`);
+
+          // Record acceptance
+          if (typeof InterventionManager !== 'undefined') {
+            InterventionManager.recordOutcome(taskId, 'accepted', interventionId);
+          }
+
+          // Execute the strategy action
+          if (typeof InterventionUI !== 'undefined') {
+            InterventionUI.handleStrategyAction(strategy, taskId);
+          }
+
+        } else {
+          console.log(`[App] User rejected ${strategy} intervention`);
+
+          // Record rejection
+          if (typeof InterventionManager !== 'undefined') {
+            InterventionManager.recordOutcome(taskId, 'rejected', interventionId);
+          }
+        }
+
+        // Store boolean value for future use
+        if (metadata.onComplete && typeof metadata.onComplete === 'function') {
+          metadata.onComplete(accepted);
+        }
+
+        // Re-render to update UI if needed
+        if (typeof render === 'function') {
+          render();
+        }
+
+      } catch (e) {
+        console.error('[App] Error handling intervention action:', e);
+      }
+    });
+
+    // Handle macOS notification click - show dialog with action buttons
+    ipcRenderer.on('intervention-show-dialog', (event, data) => {
+      console.log('[App] Show intervention dialog:', data);
+
+      const { actions, metadata } = data;
+
+      if (!actions || !metadata) {
+        console.warn('[App] Invalid dialog data');
+        return;
+      }
+
+      const { taskId, interventionId, strategy } = metadata;
+
+      // Show a simple action dialog
+      showInterventionDialog(actions, metadata, (accepted) => {
+        // Boolean callback for future development
+        console.log(`[App] Dialog result - Accepted: ${accepted}`);
+
+        // Send action back to trigger the normal flow
+        const action = accepted ? 'accept' : 'reject';
+        ipcRenderer.send('intervention-dialog-result', {
+          action: action,
+          metadata: metadata
+        });
+
+        // Also trigger local handling
+        const actionEvent = new CustomEvent('intervention-result', {
+          detail: { accepted, action, metadata }
+        });
+        window.dispatchEvent(actionEvent);
+      });
+    });
+
+    console.log('[App] Intervention action handler ready');
+  } else {
+    console.warn('[App] IPC not available, intervention actions from notifications will not work');
+  }
+}
+
+// Show intervention action dialog (for macOS notification clicks)
+function showInterventionDialog(actions, metadata, callback) {
+  const { strategy } = metadata;
+
+  // Create dialog overlay
+  const dialog = document.createElement('div');
+  dialog.className = 'intervention-dialog-overlay';
+  dialog.innerHTML = `
+    <div class="intervention-dialog">
+      <h3>Choose Action</h3>
+      <p>How would you like to respond to this intervention?</p>
+      <div class="intervention-dialog-actions">
+        ${actions.map((action, index) => `
+          <button class="btn ${action.type === 'accept' ? 'btn-primary' : 'btn-secondary'}"
+                  data-action="${action.type}"
+                  data-index="${index}">
+            ${action.text}
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+
+  // Style the dialog
+  const style = document.createElement('style');
+  style.textContent = `
+    .intervention-dialog-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      animation: fadeIn 0.2s;
+    }
+    .intervention-dialog {
+      background: #1a1a1a;
+      border-radius: 12px;
+      padding: 24px;
+      min-width: 300px;
+      max-width: 400px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      animation: slideUp 0.3s;
+    }
+    .intervention-dialog h3 {
+      margin: 0 0 12px 0;
+      font-size: 18px;
+      color: #fff;
+    }
+    .intervention-dialog p {
+      margin: 0 0 20px 0;
+      color: #aaa;
+      font-size: 14px;
+    }
+    .intervention-dialog-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  `;
+
+  document.head.appendChild(style);
+  document.body.appendChild(dialog);
+
+  // Handle button clicks
+  const buttons = dialog.querySelectorAll('button[data-action]');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const actionType = btn.getAttribute('data-action');
+      const accepted = actionType === 'accept';
+
+      // Remove dialog
+      dialog.remove();
+      style.remove();
+
+      // Call callback with boolean value
+      if (callback) {
+        callback(accepted);
+      }
+    });
+  });
+
+  // Close on overlay click
+  dialog.addEventListener('click', (e) => {
+    if (e.target === dialog) {
+      dialog.remove();
+      style.remove();
+      if (callback) {
+        callback(false); // Treat overlay click as reject
+      }
+    }
+  });
+}
+
 document.addEventListener('DOMContentLoaded', init);
 
 // Handle app closing with active session

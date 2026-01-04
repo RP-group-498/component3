@@ -105,52 +105,113 @@ const InterventionManager = {
         this.currentInterventionId = id;
         this.currentInterventionStartMotivation = task.tmtScore || 0;
 
-        if (type === 'notification') {
-            InterventionUI.showNotification("Focus Nudge", message);
-            this.logIntervention(task.id, triggerType, 'notification', 'notification', id);
-        } else {
-            // All other types show as a modal
-            InterventionUI.showInterventionModal(type, { 
-                title: "Suggestion", 
-                body: message, 
+        // Get notification content for this strategy
+        const notificationContent = this.getNotificationContent(type, task.text, message);
+
+        // Get action buttons for this strategy
+        const strategyConfig = InterventionUI.getStrategyConfig(type);
+
+        // Show system notification with action buttons (no modal!)
+        InterventionUI.showNotification(
+            notificationContent.title,
+            notificationContent.body,
+            strategyConfig.actions,
+            {
                 taskId: task.id,
-                interventionId: id 
-            });
-            this.logIntervention(task.id, triggerType, 'modal', type, id);
-        }
+                interventionId: id,
+                strategy: type
+            }
+        );
+
+        this.logIntervention(task.id, triggerType, 'notification', type, id);
+    },
+
+    /**
+     * Get notification title and body for each intervention strategy
+     * @param {string} strategy - The intervention strategy type
+     * @param {string} taskName - Name of the task
+     * @param {string} defaultMessage - Fallback message from backend
+     * @returns {Object} { title, body }
+     */
+    getNotificationContent(strategy, taskName, defaultMessage) {
+        const notificationMap = {
+            'pomodoro': {
+                title: '🍅 Pomodoro Technique Suggested',
+                body: `Try a 25-minute focus session on "${taskName}". You've got this!`
+            },
+            'two_minute_rule': {
+                title: '⏱️ Just 2 Minutes!',
+                body: `Start "${taskName}" for just 2 minutes. Often the hardest part is beginning.`
+            },
+            'breathing': {
+                title: '🧘 Take a Breath',
+                body: `Feeling overwhelmed with "${taskName}"? Try a 1-minute breathing exercise first.`
+            },
+            'reframing': {
+                title: '💭 Reframe Your Thinking',
+                body: `"${taskName}" - Remember why this matters to you. What's the benefit when it's done?`
+            },
+            'break': {
+                title: '☕ Time for a Break',
+                body: `You've been working hard on "${taskName}". Take a 5-minute break to recharge.`
+            },
+            'notification': {
+                title: '💡 Focus Nudge',
+                body: defaultMessage || `Keep going on "${taskName}"!`
+            }
+        };
+
+        return notificationMap[strategy] || {
+            title: '💡 Suggestion',
+            body: defaultMessage || `Stay focused on "${taskName}"`
+        };
     },
 
     /**
      * Fallback logic when backend is down
      */
     fallbackHeuristics(task, triggerType) {
-        let type, strategy, title, body;
-        
+        let strategy;
+
         // Simple local ID generation
         const localId = 'local_' + Date.now();
 
         if (triggerType === 'small_drop') {
-            InterventionUI.showNotification("Keep Going!", `You're doing great on "${task.text}". Just 5 more minutes?`);
+            // Simple notification for small drops
+            InterventionUI.showNotification(
+                "💪 Keep Going!",
+                `You're doing great on "${task.text}". Just 5 more minutes?`,
+                [{ type: 'accept', text: 'OK' }],
+                { taskId: task.id, interventionId: localId, strategy: 'simple_nudge' }
+            );
             this.logIntervention(task.id, triggerType, 'notification', 'simple_nudge', localId);
         } else {
+            // Choose strategy based on task characteristics
             if (task.impulsivity > 7) {
                 strategy = STRATEGIES.POMODORO;
-                title = "Distracted?";
-                body = "Let's try a Pomodoro session. 25 minutes of focus, then a break.";
+            } else if (task.delay < 0.2) {
+                strategy = STRATEGIES.BREAK;
             } else {
                 strategy = STRATEGIES.TWO_MINUTE_RULE;
-                title = "Feeling Stuck?";
-                body = "Try the 2-Minute Rule: Do the task for just 2 minutes.";
             }
 
-            InterventionUI.showInterventionModal(strategy, { 
-                title, 
-                body, 
-                taskId: task.id,
-                interventionId: localId
-            });
-            
-            this.logIntervention(task.id, triggerType, 'modal', strategy, localId);
+            // Get notification content and actions
+            const notificationContent = this.getNotificationContent(strategy, task.text);
+            const strategyConfig = InterventionUI.getStrategyConfig(strategy);
+
+            // Show notification with action buttons (no modal!)
+            InterventionUI.showNotification(
+                notificationContent.title,
+                notificationContent.body,
+                strategyConfig.actions,
+                {
+                    taskId: task.id,
+                    interventionId: localId,
+                    strategy: strategy
+                }
+            );
+
+            this.logIntervention(task.id, triggerType, 'notification', strategy, localId);
         }
     },
 
