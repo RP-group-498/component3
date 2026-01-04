@@ -35,6 +35,9 @@ const InterventionUI = {
         if (strategy === 'pomodoro') actionButtonText = "Start Timer";
         if (strategy === '2_minute_rule') actionButtonText = "Start 2 Minutes";
         if (strategy === 'just_start') actionButtonText = "Start Small";
+        if (strategy === 'breathing') actionButtonText = "Start Breathing";
+        if (strategy === 'visualization') actionButtonText = "Close Eyes";
+        if (strategy === 'reframe') actionButtonText = "Got it";
 
         modal.innerHTML = `
             <div class="intervention-modal animate-pop-in">
@@ -92,6 +95,14 @@ const InterventionUI = {
         } else if (strategy === 'just_start') {
             window.handleStartTask(taskId);
             alert("Great! Just focus on one tiny part of the task.");
+        } else if (strategy === 'breathing') {
+            alert("Take a deep breath in... hold... and out. (Do this 3 times, then resume).");
+            window.handleStartTask(taskId);
+        } else if (strategy === 'visualization') {
+            alert("Close your eyes for 30 seconds. Imagine the relief of finishing this task.");
+            window.handleStartTask(taskId);
+        } else if (strategy === 'reframe') {
+            window.handleStartTask(taskId);
         }
     }
 };

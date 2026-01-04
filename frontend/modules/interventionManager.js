@@ -51,12 +51,42 @@ const InterventionManager = {
      * @param {string} triggerType 
      * @param {number} score - Optional score associated with the trigger
      */
-    triggerIntervention(task, triggerType, score = 0) {
+    async triggerIntervention(task, triggerType, score = 0) {
         console.log(`[InterventionManager] Triggering intervention for ${task.text} (${triggerType})`);
 
-        // Heuristic Logic (Placeholder for ML Model)
-        // Future: const { type, strategy } = await ML.predictBestIntervention(task, userProfile);
+        try {
+            // Call Backend ML Service
+            const response = await fetch(`http://localhost:8000/api/v1/interventions/suggest/${task.id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ trigger_type: triggerType })
+            });
 
+            if (!response.ok) {
+                throw new Error("Backend suggestion service failed");
+            }
+
+            const suggestion = await response.json();
+            const { type, strategy, title, body } = suggestion;
+
+            if (type === 'notification' || type === 'ambient') {
+                InterventionUI.showNotification(title, body);
+                this.logIntervention(task.id, triggerType, type, strategy);
+            } else {
+                InterventionUI.showInterventionModal(strategy, { title, body, taskId: task.id });
+                this.logIntervention(task.id, triggerType, type, strategy);
+            }
+
+        } catch (error) {
+            console.warn("[InterventionManager] Falling back to local heuristics:", error);
+            this._triggerFallbackIntervention(task, triggerType);
+        }
+    },
+
+    /**
+     * Fallback heuristic logic if backend is unavailable
+     */
+    _triggerFallbackIntervention(task, triggerType) {
         let type, strategy, title, body;
 
         if (triggerType === 'small_drop') {
@@ -64,18 +94,11 @@ const InterventionManager = {
             title = "Keep Going!";
             body = `You're doing great on "${task.text}". Just 5 more minutes?`;
 
-            // Simple system notification
             InterventionUI.showNotification(title, body);
-
-            // Log for ML
             this.logIntervention(task.id, 'small_drop', type, 'simple_nudge');
 
         } else if (triggerType === 'large_drop') {
             type = INTERVENTION_TYPES.MODAL;
-
-            // Choose strategy based on TMT component analysis (rudimentary)
-            // If Impulsiveness is high -> Pomodoro
-            // If Expectancy is low -> Break Down or 2-Min Rule
 
             if (task.impulsivity > 7) {
                 strategy = STRATEGIES.POMODORO;
@@ -88,7 +111,6 @@ const InterventionManager = {
             }
 
             InterventionUI.showInterventionModal(strategy, { title, body, taskId: task.id });
-            // Log for ML
             this.logIntervention(task.id, 'large_drop', type, strategy);
         }
     },
