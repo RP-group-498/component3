@@ -8,6 +8,7 @@ import uuid
 from typing import List, Optional, Dict, Any
 from models.task import Task, TaskCreate, TaskUpdate, Subtask, SubtaskCreate, Session
 from database import db
+from services.history_service import history_service
 
 
 class TaskService:
@@ -120,7 +121,18 @@ class TaskService:
         )
         
         if result:
-            return Task(**result)
+            updated_task = Task(**result)
+            
+            # Asynchronously log snapshot if TMT values were part of the update
+            # We check if any TMT keys were in the update_data
+            tmt_keys = {'expectancy', 'value', 'impulsivity', 'delay'}
+            if any(key in update_data for key in tmt_keys):
+                # We don't await this to keep the response fast? 
+                # Actually, in async python, we should await or spawn a task. 
+                # For simplicity and safety, we await it here.
+                await history_service.log_snapshot(updated_task)
+                
+            return updated_task
         return None
     
     async def delete_task(self, task_id: str) -> bool:
