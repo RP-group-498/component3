@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     """Application settings"""
     
     # API Settings
-    API_V1_PREFIX: str = "/api"
+    API_V1_PREFIX: str = "/api/v1"
     PROJECT_NAME: str = "Focus Task Manager API"
     VERSION: str = "1.0.0"
     
@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     PORT: int = 8000
 
     # Database Settings
-    MONGODB_URL: str = "mongodb+srv://it22202468_db_user:<db_password>@rproject.mnvhur4.mongodb.net/?appName=rproject"
+    MONGODB_URL: str = "mongodb+srv://it22202468_db_user:MoSalah10@focus.dj52z6r.mongodb.net/?appName=Focus"
     MONGODB_DB_NAME: str = "focus"
     
     class Config:
