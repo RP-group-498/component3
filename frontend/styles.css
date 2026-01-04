@@ -927,3 +927,283 @@ body.red-theme .tab-btn.active {
   color: var(--text-primary);
   margin-bottom: 16px;
 }
+
+/* ===== Intervention Demo Section ===== */
+.intervention-demo-section {
+  margin-bottom: 24px;
+  padding: 20px;
+}
+
+.intervention-demo-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-white);
+  margin-bottom: 16px;
+}
+
+.intervention-demo-section h3 i {
+  width: 20px;
+  height: 20px;
+}
+
+.demo-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.demo-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-md);
+  color: var(--text-white);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.demo-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.demo-btn i {
+  width: 28px;
+  height: 28px;
+}
+
+.demo-btn span {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ===== Breathing Animation Modal ===== */
+.breathing-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.3s ease;
+}
+
+.breathing-container {
+  text-align: center;
+  color: var(--text-white);
+}
+
+.breathing-circle {
+  width: 200px;
+  height: 200px;
+  margin: 0 auto 40px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(102, 126, 234, 0.4), rgba(118, 75, 162, 0.6));
+  box-shadow: 0 0 60px rgba(102, 126, 234, 0.6);
+  animation: breathe 8s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 1;
+  }
+}
+
+.breathing-text {
+  font-size: 32px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  animation: pulse 8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.breathing-instruction {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 40px;
+  animation: fadeInOut 8s ease-in-out infinite;
+}
+
+@keyframes fadeInOut {
+  0% { content: "Breathe in..."; }
+  25% { content: "Hold..."; }
+  50% { content: "Breathe out..."; }
+  75% { content: "Hold..."; }
+  100% { content: "Breathe in..."; }
+}
+
+.breathing-counter {
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 20px;
+}
+
+.breathing-close-btn {
+  margin-top: 30px;
+  padding: 12px 32px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: var(--radius-md);
+  color: var(--text-white);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.breathing-close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+/* ===== Enhanced Intervention Modal Animations ===== */
+.intervention-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.intervention-modal {
+  background: white;
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  max-width: 450px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.animate-pop-in {
+  animation: popInBounce 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes popInBounce {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.intervention-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.intervention-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 16px;
+  animation: bounce 2s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.intervention-header h3 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.intervention-body {
+  margin-bottom: 24px;
+}
+
+.intervention-body p {
+  font-size: 16px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  text-align: center;
+}
+
+.intervention-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.btn {
+  padding: 12px 24px;
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--primary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-secondary);
+}
+
+.btn-secondary:hover {
+  background: rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}

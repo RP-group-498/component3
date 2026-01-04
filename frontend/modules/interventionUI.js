@@ -96,14 +96,79 @@ const InterventionUI = {
             window.handleStartTask(taskId);
             alert("Great! Just focus on one tiny part of the task.");
         } else if (strategy === 'breathing') {
-            alert("Take a deep breath in... hold... and out. (Do this 3 times, then resume).");
-            window.handleStartTask(taskId);
+            this.showBreathingExercise(taskId);
         } else if (strategy === 'visualization') {
             alert("Close your eyes for 30 seconds. Imagine the relief of finishing this task.");
             window.handleStartTask(taskId);
         } else if (strategy === 'reframe') {
             window.handleStartTask(taskId);
         }
+    },
+
+    /**
+     * Show breathing exercise modal with animation
+     * @param {string} taskId - Optional task ID to start after breathing
+     */
+    showBreathingExercise(taskId = null) {
+        const modal = document.createElement('div');
+        modal.className = 'breathing-modal';
+        modal.id = 'breathingModal';
+
+        const breathingStates = [
+            { text: 'Breathe In', instruction: 'Slowly inhale through your nose', duration: 4000 },
+            { text: 'Hold', instruction: 'Hold your breath', duration: 2000 },
+            { text: 'Breathe Out', instruction: 'Slowly exhale through your mouth', duration: 4000 },
+            { text: 'Hold', instruction: 'Hold your breath', duration: 2000 }
+        ];
+
+        let currentCycle = 0;
+        const totalCycles = 3;
+        let currentState = 0;
+
+        modal.innerHTML = `
+            <div class="breathing-container">
+                <div class="breathing-circle"></div>
+                <div class="breathing-text" id="breathingText">Breathe In</div>
+                <div class="breathing-instruction" id="breathingInstruction">Slowly inhale through your nose</div>
+                <div class="breathing-counter" id="breathingCounter">Cycle 1 of 3</div>
+                <button class="breathing-close-btn" id="breathingClose" style="display:none;">Complete</button>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const updateBreathingState = () => {
+            const state = breathingStates[currentState];
+            document.getElementById('breathingText').textContent = state.text;
+            document.getElementById('breathingInstruction').textContent = state.instruction;
+
+            currentState++;
+            if (currentState >= breathingStates.length) {
+                currentState = 0;
+                currentCycle++;
+                document.getElementById('breathingCounter').textContent =
+                    currentCycle < totalCycles ? `Cycle ${currentCycle + 1} of ${totalCycles}` : 'Complete!';
+
+                if (currentCycle >= totalCycles) {
+                    // Show complete button
+                    document.getElementById('breathingClose').style.display = 'block';
+                    return;
+                }
+            }
+
+            setTimeout(updateBreathingState, state.duration);
+        };
+
+        // Start the breathing cycle
+        setTimeout(updateBreathingState, breathingStates[0].duration);
+
+        // Close button handler
+        document.getElementById('breathingClose').addEventListener('click', () => {
+            modal.remove();
+            if (taskId && window.handleStartTask) {
+                window.handleStartTask(taskId);
+            }
+        });
     }
 };
 

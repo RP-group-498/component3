@@ -208,10 +208,12 @@ function createMetricsDisplay(task) {
   const expectancyBar = createMetricBar('Expectancy', task.expectancy, 'zap');
   const valueBar = createMetricBar('Value', task.value, 'star');
   const impulsivityBar = createMetricBar('Impulsivity', task.impulsivity, 'target', true);
+  const delayBar = createMetricBar('Delay', task.delay, 'clock', true);
 
   metrics.appendChild(expectancyBar);
   metrics.appendChild(valueBar);
   metrics.appendChild(impulsivityBar);
+  metrics.appendChild(delayBar);
 
   return metrics;
 }

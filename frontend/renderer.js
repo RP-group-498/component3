@@ -686,4 +686,55 @@ window.addEventListener('beforeunload', (e) => {
   }
 });
 
+// Initialize intervention demo buttons
+document.addEventListener('DOMContentLoaded', () => {
+  const demoButtons = document.querySelectorAll('.demo-btn');
+
+  demoButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const interventionType = btn.dataset.intervention;
+
+      // Demo content based on intervention type
+      const demoContent = {
+        motivation_boost: {
+          strategy: 'simple_nudge',
+          title: 'Keep Going!',
+          body: 'You\'re doing great! Just 5 more minutes can make a difference.',
+          taskId: 'demo-task'
+        },
+        task_suggestion: {
+          strategy: '2_minute_rule',
+          title: 'Feeling Stuck?',
+          body: 'Try the 2-Minute Rule: Do the task for just 2 minutes. Usually, that\'s enough to get flowing.',
+          taskId: 'demo-task'
+        },
+        break_reminder: {
+          strategy: 'pomodoro',
+          title: 'Time for a Break?',
+          body: 'Let\'s try a Pomodoro session. 25 minutes of focus, then a break.',
+          taskId: 'demo-task'
+        },
+        breathing: {
+          strategy: 'breathing',
+          title: 'Take a Deep Breath',
+          body: 'A quick breathing exercise can help you refocus and reduce stress.',
+          taskId: 'demo-task'
+        }
+      };
+
+      const content = demoContent[interventionType];
+
+      if (interventionType === 'breathing') {
+        // Show breathing exercise directly
+        InterventionUI.showBreathingExercise(null);
+      } else {
+        // Show intervention modal
+        InterventionUI.showInterventionModal(content.strategy, content);
+      }
+
+      console.log(`[Demo] Triggered ${interventionType} intervention`);
+    });
+  });
+});
+
 console.log('[Renderer] Loaded');
