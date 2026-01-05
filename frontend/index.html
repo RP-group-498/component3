@@ -7,6 +7,7 @@
   <title>Focus</title>
   <link rel="stylesheet" href="styles.css" />
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 
 <body>
@@ -33,6 +34,30 @@
           <i data-lucide="wind"></i>
           <span>Breathing Exercise</span>
         </button>
+      </div>
+    </div>
+
+    <!-- Analytics Section -->
+    <div class="analytics-section glass-card">
+      <h3><i data-lucide="trending-up"></i> Motivation Trends</h3>
+      <div class="analytics-content">
+        <div class="motivation-summary">
+          <div class="summary-card">
+            <div class="summary-label">Current Motivation</div>
+            <div class="summary-value" id="currentMotivation">--</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Average (7 days)</div>
+            <div class="summary-value" id="avgMotivation">--</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Trend</div>
+            <div class="summary-value" id="motivationTrend">--</div>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="motivationChart"></canvas>
+        </div>
       </div>
     </div>
 

@@ -428,9 +428,15 @@ function wireUpEventHandlers() {
 
 // Render task list
 function render() {
-  let tasks = TaskManager.getAllTasks();
+  let allTasks = TaskManager.getAllTasks();
 
-  // Filter tasks based on selected tab
+  // Render motivation graph with all tasks
+  if (UIManager.renderMotivationGraph) {
+    UIManager.renderMotivationGraph(allTasks);
+  }
+
+  // Filter tasks based on selected tab for task list
+  let tasks = allTasks;
   if (currentTaskFilter !== 'all') {
     tasks = tasks.filter(task => {
       if (currentTaskFilter === 'pending') {

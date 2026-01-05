@@ -572,6 +572,291 @@ function formatDuration(minutes) {
   return `${hours}h ${mins}m`;
 }
 
+/**
+ * Aggregate motivation history from all tasks
+ * @param {Array} tasks - Array of tasks
+ * @returns {Array} Sorted array of motivation data points
+ */
+function aggregateMotivationHistory(tasks) {
+  const dataPoints = [];
+
+  tasks.forEach(task => {
+    if (task.tmtHistory && Array.isArray(task.tmtHistory)) {
+      task.tmtHistory.forEach(entry => {
+        if (entry.timestamp && typeof entry.motivation === 'number') {
+          dataPoints.push({
+            timestamp: entry.timestamp,
+            motivation: entry.motivation,
+            taskId: task.id,
+            taskText: task.text
+          });
+        }
+      });
+    }
+  });
+
+  // Sort by timestamp (oldest to newest)
+  dataPoints.sort((a, b) => a.timestamp - b.timestamp);
+
+  return dataPoints;
+}
+
+/**
+ * Calculate statistics from motivation data
+ * @param {Array} dataPoints - Array of motivation data points
+ * @returns {Object} Statistics object
+ */
+function calculateMotivationStats(dataPoints) {
+  if (dataPoints.length === 0) {
+    return {
+      current: 0,
+      average: 0,
+      trend: 'neutral',
+      sevenDayAvg: 0
+    };
+  }
+
+  // Current motivation (most recent)
+  const current = dataPoints[dataPoints.length - 1].motivation;
+
+  // Overall average
+  const sum = dataPoints.reduce((acc, point) => acc + point.motivation, 0);
+  const average = sum / dataPoints.length;
+
+  // 7-day average
+  const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+  const recentPoints = dataPoints.filter(point => point.timestamp >= sevenDaysAgo);
+  const sevenDayAvg = recentPoints.length > 0
+    ? recentPoints.reduce((acc, point) => acc + point.motivation, 0) / recentPoints.length
+    : 0;
+
+  // Trend calculation (compare first half vs second half of recent data)
+  let trend = 'neutral';
+  if (recentPoints.length >= 4) {
+    const midpoint = Math.floor(recentPoints.length / 2);
+    const firstHalf = recentPoints.slice(0, midpoint);
+    const secondHalf = recentPoints.slice(midpoint);
+
+    const firstAvg = firstHalf.reduce((acc, p) => acc + p.motivation, 0) / firstHalf.length;
+    const secondAvg = secondHalf.reduce((acc, p) => acc + p.motivation, 0) / secondHalf.length;
+
+    const diff = secondAvg - firstAvg;
+    if (diff > 0.5) trend = 'up';
+    else if (diff < -0.5) trend = 'down';
+  }
+
+  return {
+    current: current.toFixed(1),
+    average: average.toFixed(1),
+    trend,
+    sevenDayAvg: sevenDayAvg.toFixed(1)
+  };
+}
+
+// Store chart instance globally to allow updates
+let motivationChartInstance = null;
+
+/**
+ * Render motivation graph
+ * @param {Array} tasks - Array of tasks
+ */
+function renderMotivationGraph(tasks) {
+  const canvas = document.getElementById('motivationChart');
+  if (!canvas) {
+    console.warn('[UIManager] motivationChart canvas not found');
+    return;
+  }
+
+  // === REAL DATA LOGIC (COMMENTED OUT FOR NOW) ===
+  // Aggregate data from all tasks
+  // const dataPoints = aggregateMotivationHistory(tasks);
+
+  // Calculate statistics
+  // const stats = calculateMotivationStats(dataPoints);
+
+  // Update summary cards
+  // updateSummaryCards(stats);
+
+  // Prepare chart data
+  // const labels = dataPoints.map(point => {
+  //   const date = new Date(point.timestamp);
+  //   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  // });
+
+  // const motivationData = dataPoints.map(point => point.motivation);
+  // === END REAL DATA LOGIC ===
+
+  // === HARDCODED SAMPLE DATA FOR TESTING ===
+  // Generate sample data for the last 14 days
+  const labels = [];
+  const motivationData = [];
+  const today = new Date();
+
+  // Sample motivation values showing a trend
+  const sampleValues = [4.2, 4.5, 5.1, 5.8, 6.2, 5.9, 6.5, 7.1, 6.8, 7.3, 7.8, 7.5, 8.1, 8.4];
+
+  for (let i = 13; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - i);
+    labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+    motivationData.push(sampleValues[13 - i]);
+  }
+
+  // Hardcoded statistics
+  const stats = {
+    current: '8.4',
+    average: '6.5',
+    trend: 'up',
+    sevenDayAvg: '7.4'
+  };
+
+  // Update summary cards with hardcoded stats
+  updateSummaryCards(stats);
+  // === END HARDCODED DATA ===
+
+  // Destroy previous chart if exists
+  if (motivationChartInstance) {
+    motivationChartInstance.destroy();
+  }
+
+  // Create new chart
+  const ctx = canvas.getContext('2d');
+
+  motivationChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Motivation Score',
+        data: motivationData,
+        borderColor: '#667eea',
+        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+        borderWidth: 3,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 4,
+        pointBackgroundColor: '#667eea',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointHoverRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+          labels: {
+            font: {
+              size: 12,
+              weight: '600'
+            },
+            color: '#1f2937',
+            padding: 15
+          }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          padding: 12,
+          titleFont: {
+            size: 13,
+            weight: '600'
+          },
+          bodyFont: {
+            size: 12
+          },
+          callbacks: {
+            label: function(context) {
+              return `Motivation: ${context.parsed.y.toFixed(1)}/10`;
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 10,
+          grid: {
+            color: 'rgba(0, 0, 0, 0.05)'
+          },
+          ticks: {
+            font: {
+              size: 11
+            },
+            color: '#6b7280'
+          },
+          title: {
+            display: true,
+            text: 'Motivation Score',
+            font: {
+              size: 12,
+              weight: '600'
+            },
+            color: '#1f2937'
+          }
+        },
+        x: {
+          grid: {
+            display: false
+          },
+          ticks: {
+            font: {
+              size: 10
+            },
+            color: '#6b7280',
+            maxRotation: 45,
+            minRotation: 0
+          }
+        }
+      }
+    }
+  });
+}
+
+/**
+ * Update summary cards with statistics
+ * @param {Object} stats - Statistics object
+ */
+function updateSummaryCards(stats) {
+  const currentEl = document.getElementById('currentMotivation');
+  const avgEl = document.getElementById('avgMotivation');
+  const trendEl = document.getElementById('motivationTrend');
+
+  if (currentEl) {
+    currentEl.textContent = stats.current;
+    // Apply color class based on value
+    currentEl.className = 'summary-value';
+    const currentVal = parseFloat(stats.current);
+    if (currentVal >= 7) currentEl.classList.add('high');
+    else if (currentVal >= 4) currentEl.classList.add('medium');
+    else currentEl.classList.add('low');
+  }
+
+  if (avgEl) {
+    avgEl.textContent = stats.sevenDayAvg;
+    avgEl.className = 'summary-value';
+    const avgVal = parseFloat(stats.sevenDayAvg);
+    if (avgVal >= 7) avgEl.classList.add('high');
+    else if (avgVal >= 4) avgEl.classList.add('medium');
+    else avgEl.classList.add('low');
+  }
+
+  if (trendEl) {
+    const trendIcons = {
+      up: '↑ Improving',
+      down: '↓ Declining',
+      neutral: '→ Stable'
+    };
+    trendEl.textContent = trendIcons[stats.trend] || '→ Stable';
+    trendEl.className = 'summary-value';
+    if (stats.trend === 'up') trendEl.classList.add('high');
+    else if (stats.trend === 'down') trendEl.classList.add('low');
+    else trendEl.classList.add('medium');
+  }
+}
+
 // Export API
 if (typeof window !== 'undefined') {
   window.UIManager = {
@@ -579,6 +864,7 @@ if (typeof window !== 'undefined') {
     renderTaskList,
     showCreateModal,
     showEditModal,
-    hideTaskModal
+    hideTaskModal,
+    renderMotivationGraph
   };
 }
