@@ -1,13 +1,13 @@
 /* ===== CSS Variables & Theme System ===== */
 :root {
-  /* Glassmorphism Background */
-  --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --bg-gradient-red: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+  /* White Background */
+  --bg-gradient: #ffffff;
+  --bg-gradient-red: #ffffff;
 
-  /* Glass Effect */
-  --glass-bg: rgba(255, 255, 255, 0.1);
-  --glass-border: rgba(255, 255, 255, 0.2);
-  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+  /* Card Effect */
+  --glass-bg: rgba(0, 0, 0, 0.02);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.08);
 
   /* Productivity Colors */
   --primary: #667eea;
@@ -43,7 +43,7 @@
 
 /* Red Theme (Low Motivation) */
 body.red-theme {
-  --bg-gradient: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+  --bg-gradient: #ffffff;
   --primary: #ef4444;
   --primary-light: #f87171;
   --primary-dark: #dc2626;
@@ -64,7 +64,7 @@ body {
   background-attachment: fixed;
   min-height: 100vh;
   padding: 40px 20px;
-  color: var(--text-white);
+  color: var(--text-primary);
 }
 
 .container {
@@ -77,8 +77,8 @@ h1 {
   font-weight: 700;
   margin-bottom: 32px;
   text-align: center;
-  color: var(--text-white);
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  color: var(--text-primary);
+  text-shadow: none;
   letter-spacing: -1px;
 }
 
@@ -123,18 +123,18 @@ button:disabled {
 }
 
 #addBtn {
-  background: var(--glass-bg);
+  background: var(--primary);
   backdrop-filter: blur(20px);
   color: var(--text-white);
   padding: 12px 24px;
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--primary);
   box-shadow: var(--glass-shadow);
 }
 
 #addBtn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--primary-dark);
   transform: translateY(-2px);
-  box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.45);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 .primary {
@@ -151,7 +151,7 @@ button:disabled {
 
 .ghost {
   background: transparent;
-  color: var(--text-white);
+  color: var(--text-secondary);
   padding: 8px;
   border-radius: 50%;
   width: 32px;
@@ -162,7 +162,8 @@ button:disabled {
 }
 
 .ghost:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-primary);
 }
 
 /* ===== Modal ===== */
@@ -321,7 +322,7 @@ button:disabled {
 }
 
 .task-item {
-  background: var(--glass-bg);
+  background: #ffffff;
   backdrop-filter: blur(20px);
   border-radius: var(--radius-lg);
   border: 1px solid var(--glass-border);
@@ -336,13 +337,13 @@ button:disabled {
 
 .task-item:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.45);
-  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  border-color: var(--primary-light);
 }
 
 .task-item.active {
-  border-color: rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.15);
+  border-color: var(--primary);
+  background: rgba(102, 126, 234, 0.02);
 }
 
 .task-left {
@@ -357,7 +358,7 @@ button:disabled {
   height: 20px;
   cursor: pointer;
   margin-top: 4px;
-  accent-color: var(--text-white);
+  accent-color: var(--primary);
 }
 
 .task-content {
@@ -375,7 +376,7 @@ button:disabled {
 .task-text {
   font-size: 16px;
   font-weight: 600;
-  color: var(--text-white);
+  color: var(--text-primary);
   flex: 1;
 }
 
@@ -391,9 +392,9 @@ button:disabled {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  background: rgba(255, 255, 255, 0.2);
-  color: var(--text-white);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(102, 126, 234, 0.1);
+  color: var(--primary);
+  border: 1px solid rgba(102, 126, 234, 0.2);
 }
 
 .status-badge {
@@ -403,7 +404,7 @@ button:disabled {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: none;
 }
 
 .status-badge.status-pending {
@@ -436,7 +437,7 @@ button:disabled {
   flex-direction: column;
   gap: 12px;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text-secondary);
 }
 
 .detail-item {
@@ -466,14 +467,14 @@ button:disabled {
 .metric-label {
   font-size: 11px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .metric-bar-bg {
   height: 6px;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.08);
   border-radius: 3px;
   overflow: hidden;
   position: relative;
@@ -488,7 +489,7 @@ button:disabled {
 .metric-value {
   font-size: 12px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text-primary);
 }
 
 /* ===== Task Actions ===== */
@@ -502,34 +503,36 @@ button:disabled {
   padding: 8px 16px;
   font-size: 12px;
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.2);
-  color: var(--text-white);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-primary);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(10px);
 }
 
 .action-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(0, 0, 0, 0.08);
   transform: translateY(-1px);
 }
 
 .start-btn {
-  background: rgba(16, 185, 129, 0.3);
-  border-color: rgba(16, 185, 129, 0.5);
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: var(--alert-green);
 }
 
 .pause-btn {
-  background: rgba(245, 158, 11, 0.3);
-  border-color: rgba(245, 158, 11, 0.5);
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: var(--alert-yellow);
 }
 
 /* ===== Subtasks ===== */
 .subtasks-section {
   margin-top: 16px;
   padding: 16px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.02);
   border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .subtasks-header {
@@ -545,7 +548,7 @@ button:disabled {
   align-items: center;
   font-size: 13px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text-primary);
 }
 
 .subtasks-label {
@@ -555,21 +558,21 @@ button:disabled {
 }
 
 .subtasks-time {
-  color: rgba(255, 255, 255, 1);
+  color: var(--text-primary);
   font-weight: 700;
 }
 
 .add-subtask-btn {
-  background: rgba(255, 255, 255, 0.2);
-  color: var(--text-white);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(102, 126, 234, 0.1);
+  color: var(--primary);
+  border: 1px solid rgba(102, 126, 234, 0.2);
   padding: 6px 12px;
   font-size: 12px;
   border-radius: var(--radius-sm);
 }
 
 .add-subtask-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(102, 126, 234, 0.15);
 }
 
 .subtasks-list {
@@ -583,15 +586,15 @@ button:disabled {
   align-items: center;
   gap: 12px;
   padding: 10px;
-  background: rgba(255, 255, 255, 0.15);
+  background: #ffffff;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   transition: all 0.2s;
 }
 
 .subtask-item:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(102, 126, 234, 0.02);
+  border-color: rgba(102, 126, 234, 0.2);
 }
 
 .subtask-item.done .subtask-text {
@@ -603,19 +606,19 @@ button:disabled {
   width: 16px;
   height: 16px;
   cursor: pointer;
-  accent-color: var(--text-white);
+  accent-color: var(--primary);
 }
 
 .subtask-text {
   flex: 1;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text-primary);
   font-weight: 500;
 }
 
 .subtask-time {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text-secondary);
   font-weight: 600;
   min-width: 50px;
   text-align: right;
@@ -624,7 +627,7 @@ button:disabled {
 .subtask-delete-btn {
   background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-light);
   font-size: 16px;
   cursor: pointer;
   padding: 0 4px;
@@ -655,7 +658,7 @@ button:disabled {
 .tasks-header h2 {
   font-size: 24px;
   font-weight: 700;
-  color: var(--text-white);
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -666,7 +669,7 @@ button:disabled {
   display: flex;
   gap: 8px;
   padding: 6px;
-  background: var(--glass-bg);
+  background: #ffffff;
   backdrop-filter: blur(20px);
   border-radius: var(--radius-lg);
   border: 1px solid var(--glass-border);
@@ -684,7 +687,7 @@ button:disabled {
   border-radius: var(--radius-md);
   font-size: 14px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
@@ -701,8 +704,8 @@ button:disabled {
 }
 
 .tab-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--text-white);
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-primary);
   transform: translateY(-1px);
 }
 
@@ -722,7 +725,7 @@ body.red-theme .tab-btn.active {
 .empty-state {
   text-align: center;
   padding: 60px 20px;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-secondary);
   font-size: 16px;
 }
 
@@ -732,17 +735,17 @@ body.red-theme .tab-btn.active {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.05);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.2);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(0, 0, 0, 0.3);
 }
 
 /* ===== Responsive ===== */
@@ -932,6 +935,10 @@ body.red-theme .tab-btn.active {
 .intervention-demo-section {
   margin-bottom: 24px;
   padding: 20px;
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
 }
 
 .intervention-demo-section h3 {
@@ -940,7 +947,7 @@ body.red-theme .tab-btn.active {
   gap: 10px;
   font-size: 18px;
   font-weight: 600;
-  color: var(--text-white);
+  color: var(--text-primary);
   margin-bottom: 16px;
 }
 
@@ -961,19 +968,19 @@ body.red-theme .tab-btn.active {
   align-items: center;
   gap: 8px;
   padding: 16px;
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(102, 126, 234, 0.05);
+  border: 1px solid rgba(102, 126, 234, 0.2);
   border-radius: var(--radius-md);
-  color: var(--text-white);
+  color: var(--primary);
   cursor: pointer;
   transition: all 0.3s ease;
   backdrop-filter: blur(10px);
 }
 
 .demo-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(102, 126, 234, 0.1);
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
 }
 
 .demo-btn i {
@@ -1004,7 +1011,7 @@ body.red-theme .tab-btn.active {
 
 .breathing-container {
   text-align: center;
-  color: var(--text-white);
+  color: #ffffff;
 }
 
 .breathing-circle {
