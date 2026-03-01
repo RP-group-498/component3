@@ -342,7 +342,7 @@ function updateBehavioralData(task, event, data = {}) {
         timestamp: Date.now(),
         duration: durationMinutes,
         category: data.category, // e.g., 'procrastinating-web', 'other-app'
-        detail: data.detail // e.g., 'youtube.com', 'Slack'
+        detail: data.detail 
       });
       break;
 

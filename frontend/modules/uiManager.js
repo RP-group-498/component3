@@ -667,26 +667,18 @@ function renderMotivationGraph(tasks) {
     return;
   }
 
-  // === REAL DATA LOGIC (COMMENTED OUT FOR NOW) ===
+  // === REAL DATA LOGIC FOR SUMMARY CARDS ===
   // Aggregate data from all tasks
-  // const dataPoints = aggregateMotivationHistory(tasks);
+  const dataPoints = aggregateMotivationHistory(tasks);
 
-  // Calculate statistics
-  // const stats = calculateMotivationStats(dataPoints);
+  // Calculate statistics from real data
+  const stats = calculateMotivationStats(dataPoints);
 
-  // Update summary cards
-  // updateSummaryCards(stats);
-
-  // Prepare chart data
-  // const labels = dataPoints.map(point => {
-  //   const date = new Date(point.timestamp);
-  //   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  // });
-
-  // const motivationData = dataPoints.map(point => point.motivation);
+  // Update summary cards with REAL stats
+  updateSummaryCards(stats);
   // === END REAL DATA LOGIC ===
 
-  // === HARDCODED SAMPLE DATA FOR TESTING ===
+  // === HARDCODED SAMPLE DATA FOR GRAPH DISPLAY ===
   // Generate sample data for the last 14 days
   const labels = [];
   const motivationData = [];
@@ -701,18 +693,7 @@ function renderMotivationGraph(tasks) {
     labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
     motivationData.push(sampleValues[13 - i]);
   }
-
-  // Hardcoded statistics
-  const stats = {
-    current: '8.4',
-    average: '6.5',
-    trend: 'up',
-    sevenDayAvg: '7.4'
-  };
-
-  // Update summary cards with hardcoded stats
-  updateSummaryCards(stats);
-  // === END HARDCODED DATA ===
+  // === END HARDCODED DATA FOR GRAPH ===
 
   // Destroy previous chart if exists
   if (motivationChartInstance) {

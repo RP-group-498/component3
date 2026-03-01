@@ -716,7 +716,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         break_reminder: {
           strategy: 'pomodoro',
-          title: 'Time for a Break?',
+          title: 'Time for a Pomodoro?',
           body: 'Let\'s try a Pomodoro session. 25 minutes of focus, then a break.',
           taskId: 'demo-task'
         },
