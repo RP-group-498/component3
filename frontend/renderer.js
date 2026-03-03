@@ -430,11 +430,6 @@ function wireUpEventHandlers() {
 function render() {
   let allTasks = TaskManager.getAllTasks();
 
-  // Render motivation graph with all tasks
-  if (UIManager.renderMotivationGraph) {
-    UIManager.renderMotivationGraph(allTasks);
-  }
-
   // Filter tasks based on selected tab for task list
   let tasks = allTasks;
   if (currentTaskFilter !== 'all') {

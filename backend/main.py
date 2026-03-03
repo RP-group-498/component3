@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import settings
 from database import db
-from routers import tasks, events, tmt, interventions
+from routers import tasks, events, tmt, interventions, app_settings
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -35,6 +35,7 @@ app.include_router(tasks.router, prefix=f"{settings.API_V1_PREFIX}/tasks", tags=
 app.include_router(tmt.router, prefix=f"{settings.API_V1_PREFIX}/tmt", tags=["tmt"])
 app.include_router(events.router, prefix=f"{settings.API_V1_PREFIX}/events", tags=["events"])
 app.include_router(interventions.router, prefix=f"{settings.API_V1_PREFIX}/interventions", tags=["interventions"])
+app.include_router(app_settings.router, prefix=f"{settings.API_V1_PREFIX}/settings", tags=["settings"])
 
 
 @app.get("/")

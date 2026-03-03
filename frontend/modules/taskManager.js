@@ -215,15 +215,44 @@ function saveTasks() {
 /**
  * Save active session state for crash recovery
  */
-function saveActiveSessionState() {
+async function saveActiveSessionState() {
   const activeTask = getActiveTask();
   if (activeTask && activeTask.currentSessionStart) {
-    localStorage.setItem('activeSession', JSON.stringify({
-      taskId: activeTask.id,
-      startTime: activeTask.currentSessionStart,
-      lastSave: Date.now()
-    }));
+    try {
+      // Save to MongoDB via API
+      await fetch('http://localhost:8000/api/v1/settings/active-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          task_id: activeTask.id,
+          start_time: activeTask.currentSessionStart
+        })
+      });
+
+      // Also save to localStorage as backup
+      localStorage.setItem('activeSession', JSON.stringify({
+        taskId: activeTask.id,
+        startTime: activeTask.currentSessionStart,
+        lastSave: Date.now()
+      }));
+    } catch (error) {
+      console.error('[TaskManager] Error saving active session to API:', error);
+      // Fallback to localStorage only
+      localStorage.setItem('activeSession', JSON.stringify({
+        taskId: activeTask.id,
+        startTime: activeTask.currentSessionStart,
+        lastSave: Date.now()
+      }));
+    }
   } else {
+    try {
+      // Clear from MongoDB
+      await fetch('http://localhost:8000/api/v1/settings/active-session', {
+        method: 'DELETE'
+      });
+    } catch (error) {
+      console.error('[TaskManager] Error clearing active session from API:', error);
+    }
     localStorage.removeItem('activeSession');
   }
 }
@@ -232,12 +261,28 @@ function saveActiveSessionState() {
  * Check for crashed session on app start
  * @returns {Object|null} Crashed session data or null
  */
-function checkForCrashedSession() {
+async function checkForCrashedSession() {
   try {
-    const raw = localStorage.getItem('activeSession');
-    if (!raw) return null;
+    let session = null;
 
-    const session = JSON.parse(raw);
+    // Try to get from API first
+    try {
+      const response = await fetch('http://localhost:8000/api/v1/settings/active-session');
+      const data = await response.json();
+      if (data.success && data.activeSession) {
+        session = data.activeSession;
+      }
+    } catch (apiError) {
+      console.warn('[TaskManager] API offline, checking localStorage for crashed session');
+    }
+
+    // Fallback to localStorage if API fails
+    if (!session) {
+      const raw = localStorage.getItem('activeSession');
+      if (!raw) return null;
+      session = JSON.parse(raw);
+    }
+
     const task = getTaskById(session.taskId);
 
     if (task && task.status === 'started' && task.currentSessionStart) {
@@ -306,6 +351,14 @@ async function recoverCrashedSession(taskId) {
       });
     }
 
+    // Clear from MongoDB and localStorage
+    try {
+      await fetch('http://localhost:8000/api/v1/settings/active-session', {
+        method: 'DELETE'
+      });
+    } catch (error) {
+      console.error('[TaskManager] Error clearing active session from API:', error);
+    }
     localStorage.removeItem('activeSession');
     console.log('[TaskManager] Recovered crashed session for task:', task.id);
   } catch (error) {

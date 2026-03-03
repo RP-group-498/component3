@@ -33,8 +33,8 @@ let timerState = {
  * Initialize timer module
  */
 async function initTimer() {
-  // Load saved timer state from localStorage
-  const saved = loadTimerState();
+  // Load saved timer state from MongoDB (with localStorage fallback)
+  const saved = await loadTimerState();
   if (saved) {
     timerState = { ...timerState, ...saved };
     console.log('[FocusTimer] Loaded saved timer state');
@@ -324,9 +324,9 @@ function onBreakComplete(callback) {
 }
 
 /**
- * Save timer state to localStorage
+ * Save timer state to MongoDB (with localStorage fallback)
  */
-function saveTimerState() {
+async function saveTimerState() {
   try {
     const state = {
       isActive: timerState.isActive,
@@ -338,6 +338,19 @@ function saveTimerState() {
       startTime: timerState.startTime,
       sessionsCompleted: timerState.sessionsCompleted
     };
+
+    // Save to MongoDB via API
+    try {
+      await fetch('http://localhost:8000/api/v1/settings/timer', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(state)
+      });
+    } catch (apiError) {
+      console.warn('[FocusTimer] API offline, saving to localStorage only:', apiError);
+    }
+
+    // Also save to localStorage as backup
     localStorage.setItem('timerState', JSON.stringify(state));
   } catch (error) {
     console.error('[FocusTimer] Error saving timer state:', error);
@@ -345,14 +358,29 @@ function saveTimerState() {
 }
 
 /**
- * Load timer state from localStorage
+ * Load timer state from MongoDB (with localStorage fallback)
  */
-function loadTimerState() {
+async function loadTimerState() {
   try {
-    const raw = localStorage.getItem('timerState');
-    if (!raw) return null;
+    let state = null;
 
-    const state = JSON.parse(raw);
+    // Try to get from API first
+    try {
+      const response = await fetch('http://localhost:8000/api/v1/settings/timer');
+      const data = await response.json();
+      if (data.success && data.timerState) {
+        state = data.timerState;
+      }
+    } catch (apiError) {
+      console.warn('[FocusTimer] API offline, loading from localStorage:', apiError);
+    }
+
+    // Fallback to localStorage if API fails
+    if (!state) {
+      const raw = localStorage.getItem('timerState');
+      if (!raw) return null;
+      state = JSON.parse(raw);
+    }
 
     // Don't restore active timer (would be stale)
     // Only restore session count
