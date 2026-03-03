@@ -27,9 +27,9 @@ class InterventionService:
         "pomodoro": "pomodoro",
         "break_down": "break_down",
         "just_start": "just_start",
-        "breathing": "breathing",         # New: Calm down
-        "visualization": "visualization", # New: Imagine success
-        "reframe": "reframe"              # New: Cognitive reframing
+        "breathing": "breathing",         
+        "visualization": "visualization", 
+        "reframe": "reframe"              
     }
 
     async def suggest_intervention(self, task: Task, trigger_type: str) -> Dict:
