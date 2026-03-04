@@ -1,20 +1,16 @@
 {
-  "name": "rp",
+  "name": "intervention-ui-demo",
   "version": "1.0.0",
-  "description": "",
+  "description": "Standalone intervention UI components demo for productivity applications",
   "license": "ISC",
   "author": "",
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "start": "electron .",
-    "backend": "cd backend && python main.py",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "electron ."
   },
   "devDependencies": {
     "electron": "^39.2.4"
   },
-  "dependencies": {
-    "@miniben90/x-win": "^3.2.0"
-  }
+  "dependencies": {}
 }

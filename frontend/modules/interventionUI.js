@@ -24,7 +24,7 @@ const InterventionUI = {
     /**
      * Show an in-app modal with an intervention strategy
      * @param {string} strategy - 'pomodoro', '2_minute_rule', etc.
-     * @param {Object} content - { title, body, taskId }
+     * @param {Object} content - { title, body, onAccept, onReject }
      */
     showInterventionModal(strategy, content) {
         const modal = document.createElement('div');
@@ -59,13 +59,13 @@ const InterventionUI = {
 
         // Event Listeners
         document.getElementById('interventionDismiss').addEventListener('click', () => {
-            InterventionManager.recordOutcome(content.taskId, 'rejected');
+            if (content.onReject) content.onReject();
             this.closeModal();
         });
 
         document.getElementById('interventionAction').addEventListener('click', () => {
-            InterventionManager.recordOutcome(content.taskId, 'accepted');
-            this.handleStrategyAction(strategy, content.taskId);
+            if (content.onAccept) content.onAccept();
+            this.handleStrategyAction(strategy, content.onAccept);
             this.closeModal();
         });
     },
@@ -83,33 +83,18 @@ const InterventionUI = {
     /**
      * Handle the specific action for a strategy
      */
-    handleStrategyAction(strategy, taskId) {
-        if (strategy === 'pomodoro') {
-            // Start Pomodoro logic (reuse TaskManager startTask)
-            // Ideally set a timer UI, but for now just ensure task is started
-            window.handleStartTask(taskId);
-            alert("Pomodoro timer started! (Simulated)");
-        } else if (strategy === '2_minute_rule') {
-            window.handleStartTask(taskId);
-            alert("2 Minute timer started! Just focus for 2 mins.");
-        } else if (strategy === 'just_start') {
-            window.handleStartTask(taskId);
-            alert("Great! Just focus on one tiny part of the task.");
-        } else if (strategy === 'breathing') {
-            this.showBreathingExercise(taskId);
-        } else if (strategy === 'visualization') {
-            alert("Close your eyes for 30 seconds. Imagine the relief of finishing this task.");
-            window.handleStartTask(taskId);
-        } else if (strategy === 'reframe') {
-            window.handleStartTask(taskId);
+    handleStrategyAction(strategy, callback) {
+        if (strategy === 'breathing') {
+            this.showBreathingExercise(callback);
         }
+        // Other strategies are handled by the callback passed in content.onAccept
     },
 
     /**
      * Show breathing exercise modal with animation
-     * @param {string} taskId - Optional task ID to start after breathing
+     * @param {Function} onComplete - Optional callback to run after breathing
      */
-    showBreathingExercise(taskId = null) {
+    showBreathingExercise(onComplete = null) {
         const modal = document.createElement('div');
         modal.className = 'breathing-modal';
         modal.id = 'breathingModal';
@@ -165,8 +150,8 @@ const InterventionUI = {
         // Close button handler
         document.getElementById('breathingClose').addEventListener('click', () => {
             modal.remove();
-            if (taskId && window.handleStartTask) {
-                window.handleStartTask(taskId);
+            if (onComplete && typeof onComplete === 'function') {
+                onComplete();
             }
         });
     }

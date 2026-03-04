@@ -4,216 +4,82 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Focus</title>
+  <title>Intervention UI Demo</title>
   <link rel="stylesheet" href="styles.css" />
   <script src="https://unpkg.com/lucide@latest"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 
 <body>
   <div class="container">
-    <h1>Focus</h1>
+    <div class="header">
+      <h1>🧠 Intervention UI Demo</h1>
+      <p class="subtitle">Standalone intervention components for productivity applications</p>
+    </div>
 
     <!-- Intervention Demo Section -->
     <div class="intervention-demo-section glass-card">
-      <h3><i data-lucide="lightbulb"></i> Intervention Demos</h3>
+      <h3><i data-lucide="lightbulb"></i> Try the Interventions</h3>
+      <p class="section-description">Click any button below to see the intervention in action</p>
+
       <div class="demo-buttons">
-        <button class="demo-btn" data-intervention="motivation_boost">
-          <i data-lucide="heart"></i>
-          <span>Motivation Boost</span>
+        <button class="demo-btn" data-intervention="2_minute_rule">
+          <i data-lucide="clock"></i>
+          <span>2-Minute Rule</span>
         </button>
-        <button class="demo-btn" data-intervention="task_suggestion">
-          <i data-lucide="target"></i>
-          <span>Task Suggestion</span>
-        </button>
-        <button class="demo-btn" data-intervention="break_reminder">
-          <i data-lucide="coffee"></i>
+        <button class="demo-btn" data-intervention="pomodoro">
+          <i data-lucide="timer"></i>
           <span>Pomodoro</span>
+        </button>
+        <button class="demo-btn" data-intervention="just_start">
+          <i data-lucide="play"></i>
+          <span>Just Start</span>
         </button>
         <button class="demo-btn" data-intervention="breathing">
           <i data-lucide="wind"></i>
           <span>Breathing Exercise</span>
         </button>
-      </div>
-    </div>
-
-    <!-- Analytics Section -->
-    <div class="analytics-section glass-card">
-      <h3><i data-lucide="trending-up"></i> Motivation Trends</h3>
-      <div class="analytics-content">
-        <div class="motivation-summary">
-          <div class="summary-card">
-            <div class="summary-label">Current Motivation</div>
-            <div class="summary-value" id="currentMotivation">--</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Average (7 days)</div>
-            <div class="summary-value" id="avgMotivation">--</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Trend</div>
-            <div class="summary-value" id="motivationTrend">--</div>
-          </div>
-        </div>
-        <div class="chart-container">
-          <canvas id="motivationChart"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tasks Section -->
-    <div class="tasks-section">
-      <div class="tasks-header">
-        <h2><i data-lucide="list-todo"></i> Tasks</h2>
-        <button id="addBtn"><i data-lucide="plus"></i> Add Task</button>
-      </div>
-
-      <!-- Task Filter Tabs -->
-      <div class="task-tabs">
-        <button class="tab-btn active" data-filter="all">
-          <i data-lucide="list"></i> All
+        <button class="demo-btn" data-intervention="visualization">
+          <i data-lucide="eye"></i>
+          <span>Visualization</span>
         </button>
-        <button class="tab-btn" data-filter="pending">
-          <i data-lucide="clock"></i> Pending
+        <button class="demo-btn" data-intervention="reframe">
+          <i data-lucide="refresh-cw"></i>
+          <span>Reframe</span>
         </button>
-        <button class="tab-btn" data-filter="started">
-          <i data-lucide="play-circle"></i> In Progress
-        </button>
-        <button class="tab-btn" data-filter="completed">
-          <i data-lucide="check-circle"></i> Completed
+        <button class="demo-btn" data-intervention="notification">
+          <i data-lucide="bell"></i>
+          <span>Notification</span>
         </button>
       </div>
     </div>
 
-    <!-- Modal popup for task details -->
-    <div id="taskModal" class="modal" role="dialog" aria-hidden="true">
-      <div class="modal-backdrop"></div>
-      <div class="modal-panel" role="document">
-        <header class="modal-header">
-          <h2 class="modal-title">New Task</h2>
-          <button id="cancelBtn" class="ghost" aria-label="Close"><i data-lucide="x"></i></button>
-        </header>
+    <!-- About Section -->
+    <div class="about-section glass-card">
+      <h3><i data-lucide="info"></i> About These Components</h3>
+      <div class="about-content">
+        <p>This demo showcases standalone intervention UI components designed to help users overcome procrastination and maintain focus.</p>
 
-        <div class="modal-body">
-          <label class="field">
-            <span>Task</span>
-            <input id="modalTaskName" type="text" placeholder="Task name" />
-            <div id="nameError" class="field-error"></div>
-          </label>
+        <h4>Available Interventions:</h4>
+        <ul class="intervention-list">
+          <li><strong>2-Minute Rule:</strong> Encourages starting with just 2 minutes of work</li>
+          <li><strong>Pomodoro:</strong> Suggests a 25-minute focused work session</li>
+          <li><strong>Just Start:</strong> Helps overcome initial resistance by starting small</li>
+          <li><strong>Breathing Exercise:</strong> Guided breathing animation to reduce stress (3 cycles)</li>
+          <li><strong>Visualization:</strong> Mental rehearsal of task completion</li>
+          <li><strong>Reframe:</strong> Cognitive reframing of task perception</li>
+          <li><strong>Notification:</strong> System-level notification example</li>
+        </ul>
 
-          <div class="input-row compact">
-            <label class="field small">
-              <span>Date</span>
-              <input id="deadlineDate" type="date" required />
-              <div id="dateError" class="field-error"></div>
-            </label>
-            <label class="field small">
-              <span>Time</span>
-              <input id="deadlineTime" type="time" required />
-              <div id="timeError" class="field-error"></div>
-            </label>
-            <label class="field small">
-              <span>Category</span>
-              <select id="category" required>
-                <option value="personal">Personal</option>
-                <option value="uni">Uni</option>
-                <option value="work">Work</option>
-              </select>
-              <div id="categoryError" class="field-error"></div>
-            </label>
-          </div>
+        <h4>Implementation:</h4>
+        <p>All components are self-contained and can be easily integrated into your own projects. They use vanilla JavaScript with no external dependencies (except Lucide icons for visuals).</p>
 
-          <div class="tmt-info">
-            <p class="tmt-notice"><i data-lucide="bar-chart-2"></i> TMT variables (Expectancy, Value, Impulsiveness,
-              Delay) are automatically calculated from your behavior patterns.</p>
-          </div>
-        </div>
-
-        <footer class="modal-footer">
-          <div id="formError" class="field-error"></div>
-          <button id="createBtn" class="primary" disabled>Create</button>
-        </footer>
+        <p>The intervention modals support custom callbacks for accept/reject actions, making them flexible for different use cases.</p>
       </div>
     </div>
-
-    <!-- Subtask Modal -->
-    <div id="subtaskModal" class="modal" role="dialog" aria-hidden="true">
-      <div class="modal-backdrop"></div>
-      <div class="modal-panel subtask-modal" role="document">
-        <header class="modal-header">
-          <h2 class="modal-title">Add Subtask</h2>
-          <button id="subtaskCancelBtn" class="ghost" aria-label="Close"><i data-lucide="x"></i></button>
-        </header>
-
-        <div class="modal-body">
-          <label class="field">
-            <span>Subtask</span>
-            <input id="subtaskText" type="text" placeholder="Subtask description" />
-            <div id="subtaskTextError" class="field-error"></div>
-          </label>
-
-          <div class="input-row compact">
-            <label class="field small">
-              <span>Est. Hours</span>
-              <input id="subtaskHours" type="number" min="0" max="100" value="0" placeholder="0" />
-            </label>
-            <label class="field small">
-              <span>Est. Minutes</span>
-              <input id="subtaskMinutes" type="number" min="0" max="59" value="0" placeholder="0" />
-            </label>
-          </div>
-        </div>
-
-        <footer class="modal-footer">
-          <div id="subtaskFormError" class="field-error"></div>
-          <button id="subtaskSaveBtn" class="primary">Add Subtask</button>
-        </footer>
-      </div>
-    </div>
-
-    <!-- Delete Task Modal -->
-    <div id="deleteTaskModal" class="modal" role="dialog" aria-hidden="true">
-      <div class="modal-backdrop"></div>
-      <div class="modal-panel delete-modal" role="document">
-        <header class="modal-header">
-          <h2 class="modal-title">Delete Task</h2>
-          <button id="deleteCancelBtn" class="ghost" aria-label="Close"><i data-lucide="x"></i></button>
-        </header>
-
-        <div class="modal-body">
-          <p id="deleteTaskMessage">Why are you removing this task?</p>
-          <div class="delete-options">
-            <button id="deleteMistakeBtn" class="option-btn">
-              <i data-lucide="trash-2"></i>
-              <div class="option-text">
-                <span class="option-title">Added by Mistake</span>
-                <span class="option-desc">Remove completely. Won't affect motivation score.</span>
-              </div>
-            </button>
-            <button id="deleteAbandonBtn" class="option-btn">
-              <i data-lucide="x-circle"></i>
-              <div class="option-text">
-                <span class="option-title">Canceling / Postponing</span>
-                <span class="option-desc">Mark as abandoned. Affects motivation history.</span>
-              </div>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <ul id="taskList" class="task-list"></ul>
-
   </div>
 
   <!-- Load modules -->
-  <script src="modules/utils.js"></script>
-  <script src="modules/eventLogger.js"></script>
-  <script src="modules/tmtEngine.js"></script>
   <script src="modules/interventionUI.js"></script>
-  <script src="modules/interventionManager.js"></script>
-  <script src="modules/taskManager.js"></script>
-  <script src="modules/uiManager.js"></script>
   <script src="renderer.js"></script>
 
   <!-- Initialize Lucide Icons -->
