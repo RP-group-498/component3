@@ -275,6 +275,115 @@ p {
   transform: scale(1.05);
 }
 
+/* Visualization Modal - Immersive Focus Tunnel */
+.visualization-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #050510;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    color: white;
+    text-align: center;
+    overflow: hidden;
+}
+
+.visualization-background {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    perspective: 1000px;
+    z-index: -1;
+}
+
+.viz-particle {
+    position: absolute;
+    background: white;
+    border-radius: 50%;
+    opacity: 0.3;
+    animation: move-particle 5s linear infinite;
+}
+
+@keyframes move-particle {
+    from { transform: translateZ(-1000px); opacity: 0; }
+    to { transform: translateZ(500px); opacity: 0.8; }
+}
+
+.visualization-portal {
+    width: 200px;
+    height: 200px;
+    border: 2px solid rgba(77, 150, 255, 0.3);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    box-shadow: 0 0 100px rgba(77, 150, 255, 0.2);
+    animation: rotate-portal 20s linear infinite;
+}
+
+.visualization-portal::after {
+    content: '';
+    position: absolute;
+    width: 110%;
+    height: 110%;
+    border: 1px dashed rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    animation: rotate-portal-reverse 15s linear infinite;
+}
+
+@keyframes rotate-portal {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes rotate-portal-reverse {
+    from { transform: rotate(360deg); }
+    to { transform: rotate(0deg); }
+}
+
+.visualization-text-content {
+    position: absolute;
+    z-index: 10;
+    width: 100%;
+    pointer-events: none;
+}
+
+.visualization-text {
+    font-size: 2rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+.visualization-instruction {
+    max-width: 400px;
+    font-size: 1.1rem;
+    color: #a0a0c0;
+    line-height: 1.5;
+}
+
+.visualization-actions {
+    margin-top: 20px;
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    pointer-events: auto;
+}
+
+@keyframes rotate-portal {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes rotate-portal-reverse {
+    from { transform: rotate(360deg); }
+    to { transform: rotate(0deg); }
+}
+
 /* ===== Intervention Modal ===== */
 .intervention-modal-backdrop {
   position: fixed;

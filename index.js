@@ -66,6 +66,14 @@ ipcMain.on('tray:clear', () => {
   }
 });
 
+ipcMain.on('window:show', () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  }
+});
+
 /**
  * IPC Handler: Show System Notification with Actions
  */

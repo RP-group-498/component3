@@ -107,6 +107,28 @@ document.addEventListener('DOMContentLoaded', () => {
         startPomodoroTimer();
       } else if (strategy === '5_second_rule' && action === 'start') {
         startFiveSecondCountdown();
+      } else if (strategy === 'breathing' && action === 'start') {
+        ipcRenderer.send('window:show');
+        if (typeof InterventionUI !== 'undefined') {
+          InterventionUI.showBreathingExercise(() => {
+            console.log('Breathing exercise completed');
+          });
+        }
+      } else if (strategy === 'visualization' && action === 'start') {
+        ipcRenderer.send('window:show');
+        if (typeof InterventionUI !== 'undefined') {
+          InterventionUI.showVisualizationExercise(() => {
+            console.log('Visualization exercise completed');
+          });
+        }
+      } else if (strategy === 'reframe' && action === 'start') {
+        ipcRenderer.send('window:show');
+        if (typeof InterventionUI !== 'undefined') {
+          InterventionUI.showInterventionModal(
+            'reframe',
+            interventionContent['reframe']
+          );
+        }
       }
     });
   }
@@ -235,10 +257,33 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         }
       } else if (intervention === 'breathing') {
-        // Show breathing exercise directly
-        if (typeof InterventionUI !== 'undefined') {
-          InterventionUI.showBreathingExercise(() => {
-            console.log('Breathing exercise completed');
+        // Trigger OS Notification with actions for breathing
+        if (typeof require !== 'undefined') {
+          const { ipcRenderer } = require('electron');
+          ipcRenderer.send('notify:intervention-actions', {
+            title: 'Time for a Breath',
+            body: 'Take a moment to calm your mind.',
+            strategy: 'breathing'
+          });
+        }
+      } else if (intervention === 'visualization') {
+        // Trigger OS Notification with actions for visualization
+        if (typeof require !== 'undefined') {
+          const { ipcRenderer } = require('electron');
+          ipcRenderer.send('notify:intervention-actions', {
+            title: 'Visualize Completion',
+            body: 'Close your eyes and imagine finishing this task.',
+            strategy: 'visualization'
+          });
+        }
+      } else if (intervention === 'reframe') {
+        // Trigger OS Notification with actions for reframe
+        if (typeof require !== 'undefined') {
+          const { ipcRenderer } = require('electron');
+          ipcRenderer.send('notify:intervention-actions', {
+            title: 'Reframe Your Perspective',
+            body: 'Try looking at this task from a different angle.',
+            strategy: 'reframe'
           });
         }
       } else if (interventionContent[intervention]) {

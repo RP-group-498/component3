@@ -152,9 +152,31 @@ const InterventionUI = {
         // Start the breathing cycle
         breathingTimer = setTimeout(updateBreathingState, breathingStates[0].duration);
 
+        // Auto-cancel if window loses focus or is minimized
+        const handleAutoCancel = () => {
+            if (document.getElementById('breathingModal')) {
+                console.log('Breathing exercise auto-cancelled due to window focus loss');
+                clearTimeout(breathingTimer);
+                modal.remove();
+                window.removeEventListener('blur', handleAutoCancel);
+                window.removeEventListener('visibilitychange', handleVisibilityChange);
+            }
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') {
+                handleAutoCancel();
+            }
+        };
+
+        window.addEventListener('blur', handleAutoCancel);
+        window.addEventListener('visibilitychange', handleVisibilityChange);
+
         // Close button handler
         document.getElementById('breathingClose').addEventListener('click', () => {
             clearTimeout(breathingTimer);
+            window.removeEventListener('blur', handleAutoCancel);
+            window.removeEventListener('visibilitychange', handleVisibilityChange);
             modal.remove();
             if (onComplete && typeof onComplete === 'function') {
                 onComplete();
@@ -164,8 +186,99 @@ const InterventionUI = {
         // Cancel button handler
         document.getElementById('breathingCancel').addEventListener('click', () => {
             clearTimeout(breathingTimer);
+            window.removeEventListener('blur', handleAutoCancel);
+            window.removeEventListener('visibilitychange', handleVisibilityChange);
             modal.remove();
             console.log('Breathing exercise cancelled');
+        });
+    },
+
+    /**
+     * Show visualization exercise with animation
+     * @param {Function} onComplete - Optional callback to run after visualization
+     */
+    showVisualizationExercise(onComplete = null) {
+        const modal = document.createElement('div');
+        modal.className = 'visualization-modal';
+        modal.id = 'visualizationModal';
+
+        let timeLeft = 30;
+        let visualizationTimer = null;
+
+        modal.innerHTML = `
+            <div class="visualization-background" id="vizParticles"></div>
+            <div class="visualization-container">
+                <div class="visualization-portal">
+                    <div class="visualization-text-content">
+                        <div class="visualization-text" id="vizText">Focus</div>
+                    </div>
+                </div>
+                <div class="visualization-instruction" id="vizInstruction">Imagine the exact steps to finish your task.</div>
+                <div class="visualization-counter" id="vizCounter">30s</div>
+                <div class="visualization-actions">
+                    <button class="btn btn-secondary" id="vizCancel">Cancel</button>
+                    <button class="breathing-close-btn" id="vizClose" style="display:none; margin-top: 0;">Complete</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Generate static particles
+        const particleContainer = document.getElementById('vizParticles');
+        for (let i = 0; i < 50; i++) {
+            const p = document.createElement('div');
+            p.className = 'viz-particle';
+            p.style.left = Math.random() * 100 + '%';
+            p.style.top = Math.random() * 100 + '%';
+            p.style.width = Math.random() * 3 + 'px';
+            p.style.height = p.style.width;
+            p.style.animationDelay = Math.random() * 5 + 's';
+            particleContainer.appendChild(p);
+        }
+
+        const updateVizState = () => {
+            if (!document.getElementById('visualizationModal')) return;
+
+            timeLeft--;
+            document.getElementById('vizCounter').textContent = `${timeLeft}s remaining`;
+
+            if (timeLeft <= 0) {
+                document.getElementById('vizText').textContent = 'Well Done';
+                document.getElementById('vizInstruction').textContent = 'Hold onto that feeling of relief and satisfaction.';
+                document.getElementById('vizCounter').textContent = 'Visualization Complete';
+                document.getElementById('vizClose').style.display = 'block';
+                document.getElementById('vizCancel').style.display = 'none';
+                return;
+            }
+
+            visualizationTimer = setTimeout(updateVizState, 1000);
+        };
+
+        visualizationTimer = setTimeout(updateVizState, 1000);
+
+        const cleanup = () => {
+            clearTimeout(visualizationTimer);
+            window.removeEventListener('blur', cleanup);
+            window.removeEventListener('visibilitychange', handleVisibilityChange);
+            modal.remove();
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') cleanup();
+        };
+
+        window.addEventListener('blur', cleanup);
+        window.addEventListener('visibilitychange', handleVisibilityChange);
+
+        document.getElementById('vizClose').addEventListener('click', () => {
+            cleanup();
+            if (onComplete) onComplete();
+        });
+
+        document.getElementById('vizCancel').addEventListener('click', () => {
+            cleanup();
+            console.log('Visualization cancelled');
         });
     }
 };
