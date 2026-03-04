@@ -30,16 +30,16 @@ async function logToBackend(strategy, action) {
 
 // Intervention content for each strategy
 const interventionContent = {
-  '2_minute_rule': {
-    title: 'Try the 2-Minute Rule',
-    body: 'Commit to working on this for just 2 minutes. Often, starting is the hardest part!',
+  '5_second_rule': {
+    title: 'Use the 5-Second Rule',
+    body: 'Count down 5-4-3-2-1 and then GO. Do not give your brain time to hesitate!',
     onAccept: () => {
-      console.log('User accepted: 2-Minute Rule');
-      logToBackend('2_minute_rule', 'accept');
+      console.log('User accepted: 5-Second Rule');
+      logToBackend('5_second_rule', 'accept');
     },
     onReject: () => {
-      console.log('User rejected: 2-Minute Rule');
-      logToBackend('2_minute_rule', 'reject');
+      console.log('User rejected: 5-Second Rule');
+      logToBackend('5_second_rule', 'reject');
     }
   },
   'pomodoro': {
@@ -96,18 +96,143 @@ const interventionContent = {
 document.addEventListener('DOMContentLoaded', () => {
   const demoButtons = document.querySelectorAll('.demo-btn');
 
+  // Listen for notification actions from main process
+  if (typeof require !== 'undefined') {
+    const { ipcRenderer } = require('electron');
+    ipcRenderer.on('notification-action-response', (event, { strategy, action }) => {
+      console.log(`[Notification Action] ${strategy}: ${action}`);
+      logToBackend(strategy, action);
+
+      if (strategy === 'pomodoro' && action === 'start') {
+        startPomodoroTimer();
+      } else if (strategy === '5_second_rule' && action === 'start') {
+        startFiveSecondCountdown();
+      }
+    });
+  }
+
+  function startFiveSecondCountdown() {
+    console.log('5-Second Rule Started');
+    let timeLeft = 5;
+    const { ipcRenderer } = require('electron');
+
+    const updateTray = () => {
+      ipcRenderer.send('tray:update-timer', { label: `Go in ${timeLeft}...` });
+    };
+
+    updateTray();
+
+    const timerInterval = setInterval(() => {
+      timeLeft--;
+      if (timeLeft > 0) {
+        updateTray();
+      } else {
+        clearInterval(timerInterval);
+        ipcRenderer.send('tray:update-timer', { label: 'Let\'s Go!' });
+        
+        // Show completion notification
+        if (typeof InterventionUI !== 'undefined') {
+          InterventionUI.showNotification(
+            'Time to Move!',
+            '5-4-3-2-1... GO!'
+          );
+        }
+
+        // Clear tray after 3 seconds
+        setTimeout(() => {
+          ipcRenderer.send('tray:clear');
+        }, 3000);
+      }
+    }, 1000);
+  }
+
+  function startPomodoroTimer() {
+    console.log('Pomodoro Timer Started: 25 minutes');
+    let timeLeft = 25 * 60; // 25 minutes in seconds
+    const { ipcRenderer } = require('electron');
+
+    const updateTray = () => {
+      const minutes = Math.floor(timeLeft / 60);
+      const seconds = timeLeft % 60;
+      const label = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      ipcRenderer.send('tray:update-timer', { label });
+    };
+
+    updateTray();
+
+    const timerInterval = setInterval(() => {
+      timeLeft--;
+      updateTray();
+
+      if (timeLeft <= 0) {
+        clearInterval(timerInterval);
+        ipcRenderer.send('tray:clear');
+        
+        if (typeof InterventionUI !== 'undefined') {
+          InterventionUI.showNotification(
+            'Pomodoro Complete!',
+            'Great work! Now take a 5-minute break.'
+          );
+        }
+        startBreakTimer();
+      }
+    }, 1000);
+  }
+
+  function startBreakTimer() {
+    let timeLeft = 5 * 60; // 5 minutes in seconds
+    const { ipcRenderer } = require('electron');
+
+    const updateTray = () => {
+      const minutes = Math.floor(timeLeft / 60);
+      const seconds = timeLeft % 60;
+      const label = `Break: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+      ipcRenderer.send('tray:update-timer', { label });
+    };
+
+    updateTray();
+
+    const breakInterval = setInterval(() => {
+      timeLeft--;
+      updateTray();
+
+      if (timeLeft <= 0) {
+        clearInterval(breakInterval);
+        ipcRenderer.send('tray:clear');
+        
+        if (typeof InterventionUI !== 'undefined') {
+          InterventionUI.showNotification(
+            'Break Over',
+            'Ready to start your next session?'
+          );
+        }
+      }
+    }, 1000);
+  }
+
   demoButtons.forEach(button => {
     button.addEventListener('click', () => {
       const intervention = button.getAttribute('data-intervention');
 
-      if (intervention === 'notification') {
-        // Show system notification
-        if (typeof InterventionUI !== 'undefined') {
-          InterventionUI.showNotification(
-            'Stay Focused!',
-            'Remember to take breaks and stay hydrated.'
-          );
-          console.log('Triggered: System Notification');
+      if (intervention === 'pomodoro') {
+        // Trigger OS Notification with actions instead of modal
+        if (typeof require !== 'undefined') {
+          const { ipcRenderer } = require('electron');
+          ipcRenderer.send('notify:intervention-actions', {
+            title: 'Pomodoro Session',
+            body: 'Ready to focus for 25 minutes?',
+            strategy: 'pomodoro'
+          });
+        }
+      } else if (intervention === '5_second_rule') {
+        // Trigger OS Notification with actions for 5-second rule
+        if (typeof require !== 'undefined') {
+          const { ipcRenderer } = require('electron');
+          ipcRenderer.send('notify:intervention-actions', {
+            title: '5-Second Rule',
+            body: 'Count down 5-4-3-2-1 and move!',
+            strategy: '5_second_rule'
+          });
         }
       } else if (intervention === 'breathing') {
         // Show breathing exercise directly

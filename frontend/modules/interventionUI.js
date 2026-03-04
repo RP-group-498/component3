@@ -33,7 +33,7 @@ const InterventionUI = {
 
         let actionButtonText = "Let's do it";
         if (strategy === 'pomodoro') actionButtonText = "Start Timer";
-        if (strategy === '2_minute_rule') actionButtonText = "Start 2 Minutes";
+        if (strategy === '5_second_rule') actionButtonText = "5-4-3-2-1 GO!";
         if (strategy === 'breathing') actionButtonText = "Start Breathing";
         if (strategy === 'visualization') actionButtonText = "Close Eyes";
         if (strategy === 'reframe') actionButtonText = "Got it";
@@ -41,7 +41,6 @@ const InterventionUI = {
         modal.innerHTML = `
             <div class="intervention-modal animate-pop-in">
                 <div class="intervention-header">
-                    <span class="intervention-icon">💡</span>
                     <h3>${content.title}</h3>
                 </div>
                 <div class="intervention-body">

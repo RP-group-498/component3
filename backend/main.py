@@ -24,13 +24,12 @@ class Strategy(BaseModel):
     id: str
     title: str
     description: str
-    icon: Optional[str] = "💡"
 
 # Mock database
 intervention_logs = []
 strategies = [
     Strategy(id="pomodoro", title="Pomodoro Timer", description="Focus for 25 minutes, then take a 5-minute break."),
-    Strategy(id="2_minute_rule", title="2-Minute Rule", description="If it takes less than 2 minutes, do it now."),
+    Strategy(id="5_second_rule", title="5-Second Rule", description="Count down 5-4-3-2-1 and physically move to start your task."),
     Strategy(id="breathing", title="Breathing Exercise", description="Take a moment to calm your mind with guided breathing."),
 ]
 
