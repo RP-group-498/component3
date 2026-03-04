@@ -4,46 +4,91 @@
 
 console.log('[Demo] Initializing Intervention UI Demo...');
 
+/**
+ * Log intervention result to backend
+ * @param {string} strategy 
+ * @param {string} action 
+ */
+async function logToBackend(strategy, action) {
+  try {
+    const response = await fetch('http://localhost:8000/log', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ strategy, action }),
+    });
+    if (response.ok) {
+      console.log(`[API] Logged ${strategy} ${action}`);
+    } else {
+      console.warn(`[API] Failed to log ${strategy} ${action}`, response.statusText);
+    }
+  } catch (error) {
+    console.error(`[API] Error logging ${strategy} ${action}:`, error);
+  }
+}
+
 // Intervention content for each strategy
 const interventionContent = {
   '2_minute_rule': {
     title: 'Try the 2-Minute Rule',
     body: 'Commit to working on this for just 2 minutes. Often, starting is the hardest part!',
-    onAccept: () => console.log('User accepted: 2-Minute Rule'),
-    onReject: () => console.log('User rejected: 2-Minute Rule')
+    onAccept: () => {
+      console.log('User accepted: 2-Minute Rule');
+      logToBackend('2_minute_rule', 'accept');
+    },
+    onReject: () => {
+      console.log('User rejected: 2-Minute Rule');
+      logToBackend('2_minute_rule', 'reject');
+    }
   },
   'pomodoro': {
     title: 'Start a Pomodoro Session',
     body: 'Focus for 25 minutes, then take a 5-minute break. This helps maintain concentration.',
-    onAccept: () => console.log('User accepted: Pomodoro'),
-    onReject: () => console.log('User rejected: Pomodoro')
-  },
-  'just_start': {
-    title: 'Just Start Small',
-    body: 'Pick one tiny part and start there. You don\'t need to do it all at once.',
-    onAccept: () => console.log('User accepted: Just Start'),
-    onReject: () => console.log('User rejected: Just Start')
+    onAccept: () => {
+      console.log('User accepted: Pomodoro');
+      logToBackend('pomodoro', 'accept');
+    },
+    onReject: () => {
+      console.log('User rejected: Pomodoro');
+      logToBackend('pomodoro', 'reject');
+    }
   },
   'breathing': {
     title: 'Take a Breathing Break',
     body: 'A quick breathing exercise can help reduce stress and improve focus.',
     onAccept: () => {
       console.log('User accepted: Breathing');
-      // Will be handled by InterventionUI
+      logToBackend('breathing', 'accept');
     },
-    onReject: () => console.log('User rejected: Breathing')
+    onReject: () => {
+      console.log('User rejected: Breathing');
+      logToBackend('breathing', 'reject');
+    }
   },
   'visualization': {
     title: 'Visualize Completion',
     body: 'Close your eyes for 30 seconds. Imagine the relief and satisfaction of finishing this.',
-    onAccept: () => console.log('User accepted: Visualization'),
-    onReject: () => console.log('User rejected: Visualization')
+    onAccept: () => {
+      console.log('User accepted: Visualization');
+      logToBackend('visualization', 'accept');
+    },
+    onReject: () => {
+      console.log('User rejected: Visualization');
+      logToBackend('visualization', 'reject');
+    }
   },
   'reframe': {
     title: 'Reframe Your Perspective',
     body: 'Instead of "I have to do this," try "I choose to do this because it helps me [achieve goal]."',
-    onAccept: () => console.log('User accepted: Reframe'),
-    onReject: () => console.log('User rejected: Reframe')
+    onAccept: () => {
+      console.log('User accepted: Reframe');
+      logToBackend('reframe', 'accept');
+    },
+    onReject: () => {
+      console.log('User rejected: Reframe');
+      logToBackend('reframe', 'reject');
+    }
   }
 };
 

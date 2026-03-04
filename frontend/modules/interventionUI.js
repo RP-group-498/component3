@@ -34,7 +34,6 @@ const InterventionUI = {
         let actionButtonText = "Let's do it";
         if (strategy === 'pomodoro') actionButtonText = "Start Timer";
         if (strategy === '2_minute_rule') actionButtonText = "Start 2 Minutes";
-        if (strategy === 'just_start') actionButtonText = "Start Small";
         if (strategy === 'breathing') actionButtonText = "Start Breathing";
         if (strategy === 'visualization') actionButtonText = "Close Eyes";
         if (strategy === 'reframe') actionButtonText = "Got it";
@@ -109,6 +108,7 @@ const InterventionUI = {
         let currentCycle = 0;
         const totalCycles = 3;
         let currentState = 0;
+        let breathingTimer = null;
 
         modal.innerHTML = `
             <div class="breathing-container">
@@ -116,13 +116,18 @@ const InterventionUI = {
                 <div class="breathing-text" id="breathingText">Breathe In</div>
                 <div class="breathing-instruction" id="breathingInstruction">Slowly inhale through your nose</div>
                 <div class="breathing-counter" id="breathingCounter">Cycle 1 of 3</div>
-                <button class="breathing-close-btn" id="breathingClose" style="display:none;">Complete</button>
+                <div class="breathing-actions" style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
+                    <button class="btn btn-secondary" id="breathingCancel">Cancel</button>
+                    <button class="breathing-close-btn" id="breathingClose" style="display:none;">Complete</button>
+                </div>
             </div>
         `;
 
         document.body.appendChild(modal);
 
         const updateBreathingState = () => {
+            if (!document.getElementById('breathingModal')) return;
+
             const state = breathingStates[currentState];
             document.getElementById('breathingText').textContent = state.text;
             document.getElementById('breathingInstruction').textContent = state.instruction;
@@ -135,24 +140,33 @@ const InterventionUI = {
                     currentCycle < totalCycles ? `Cycle ${currentCycle + 1} of ${totalCycles}` : 'Complete!';
 
                 if (currentCycle >= totalCycles) {
-                    // Show complete button
+                    // Show complete button and hide cancel
                     document.getElementById('breathingClose').style.display = 'block';
+                    document.getElementById('breathingCancel').style.display = 'none';
                     return;
                 }
             }
 
-            setTimeout(updateBreathingState, state.duration);
+            breathingTimer = setTimeout(updateBreathingState, state.duration);
         };
 
         // Start the breathing cycle
-        setTimeout(updateBreathingState, breathingStates[0].duration);
+        breathingTimer = setTimeout(updateBreathingState, breathingStates[0].duration);
 
         // Close button handler
         document.getElementById('breathingClose').addEventListener('click', () => {
+            clearTimeout(breathingTimer);
             modal.remove();
             if (onComplete && typeof onComplete === 'function') {
                 onComplete();
             }
+        });
+
+        // Cancel button handler
+        document.getElementById('breathingCancel').addEventListener('click', () => {
+            clearTimeout(breathingTimer);
+            modal.remove();
+            console.log('Breathing exercise cancelled');
         });
     }
 };

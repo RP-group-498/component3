@@ -7,7 +7,9 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "backend:start": "./venv/bin/python backend/main.py",
+    "setup:python": "python3 -m venv venv && ./venv/bin/pip install -r backend/requirements.txt"
   },
   "devDependencies": {
     "electron": "^39.2.4"
