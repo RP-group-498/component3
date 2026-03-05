@@ -95,13 +95,40 @@ const interventionContent = {
 // Set up demo button event listeners
 document.addEventListener('DOMContentLoaded', () => {
   const demoButtons = document.querySelectorAll('.demo-btn');
+  const lifeGoalInput = document.getElementById('lifeGoalInput');
+  const saveGoalBtn = document.getElementById('saveGoalBtn');
+
+  // Load existing goal
+  fetch('http://localhost:8000/user/goal')
+    .then(res => res.json())
+    .then(data => {
+      if (data.life_goal) lifeGoalInput.value = data.life_goal;
+    });
+
+  saveGoalBtn.addEventListener('click', async () => {
+    const goal = lifeGoalInput.value;
+    try {
+      await fetch('http://localhost:8000/user/goal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ life_goal: goal })
+      });
+      console.log('Goal saved successfully');
+      alert('Goal saved!');
+    } catch (error) {
+      console.error('Error saving goal:', error);
+    }
+  });
 
   // Listen for notification actions from main process
   if (typeof require !== 'undefined') {
     const { ipcRenderer } = require('electron');
-    ipcRenderer.on('notification-action-response', (event, { strategy, action }) => {
+    ipcRenderer.on('notification-action-response', async (event, { strategy, action }) => {
       console.log(`[Notification Action] ${strategy}: ${action}`);
-      logToBackend(strategy, action);
+      
+      // Map 'reject' to 'not_now' for logging if needed
+      const logAction = action === 'reject' ? 'not_now' : action;
+      logToBackend(strategy, logAction);
 
       if (strategy === 'pomodoro' && action === 'start') {
         startPomodoroTimer();
@@ -122,13 +149,8 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         }
       } else if (strategy === 'reframe' && action === 'start') {
-        ipcRenderer.send('window:show');
-        if (typeof InterventionUI !== 'undefined') {
-          InterventionUI.showInterventionModal(
-            'reframe',
-            interventionContent['reframe']
-          );
-        }
+        // No modal needed, the message was in the notification body
+        console.log('User acknowledged reframe notification');
       }
     });
   }
@@ -233,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   demoButtons.forEach(button => {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', async () => {
       const intervention = button.getAttribute('data-intervention');
 
       if (intervention === 'pomodoro') {
@@ -277,12 +299,22 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         }
       } else if (intervention === 'reframe') {
-        // Trigger OS Notification with actions for reframe
+        // Fetch current goal for reframe notification body
+        let goal = 'your goals';
+        try {
+          const res = await fetch('http://localhost:8000/user/goal');
+          const data = await res.json();
+          if (data.life_goal) goal = data.life_goal;
+        } catch (e) {
+          console.error('Error fetching goal for notification:', e);
+        }
+
+        // Trigger OS Notification with the reframe message directly in the body
         if (typeof require !== 'undefined') {
           const { ipcRenderer } = require('electron');
           ipcRenderer.send('notify:intervention-actions', {
             title: 'Reframe Your Perspective',
-            body: 'Try looking at this task from a different angle.',
+            body: `I choose to do this because it helps me ${goal}.`,
             strategy: 'reframe'
           });
         }

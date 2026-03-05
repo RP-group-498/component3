@@ -86,24 +86,41 @@ ipcMain.on('notify:intervention-actions', (event, { title, body, strategy }) => 
       actions: [
         { type: 'button', text: 'Start' },
         { type: 'button', text: 'Skip' },
-        { type: 'button', text: 'Not this intervention' }
+        { type: 'button', text: 'Not now' }
       ]
     });
 
+    let actionTaken = false;
+
+    const handleAction = (action) => {
+      if (actionTaken) return;
+      actionTaken = true;
+      clearTimeout(autoCloseTimeout);
+      event.reply('notification-action-response', { strategy, action });
+    };
+
     notification.on('action', (e, index) => {
       const actions = ['start', 'skip', 'reject'];
-      event.reply('notification-action-response', { 
-        strategy, 
-        action: actions[index] 
-      });
+      handleAction(actions[index]);
     });
 
-    // Fallback for clicking the notification itself or close
     notification.on('click', () => {
-       event.reply('notification-action-response', { strategy, action: 'start' });
+      handleAction('start');
+    });
+
+    notification.on('close', () => {
+      handleAction('skip');
     });
 
     notification.show();
+
+    // Auto-close after 15 seconds
+    const autoCloseTimeout = setTimeout(() => {
+      if (!actionTaken) {
+        notification.close();
+        handleAction('skip');
+      }
+    }, 15000);
   }
 });
 

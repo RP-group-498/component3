@@ -1,23 +1,33 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 import time
+import motor.motor_asyncio
 
 app = FastAPI(title="Intervention API")
+
+# MongoDB connection
+MONGO_DETAILS = "mongodb+srv://it22202468_db_user:H9uZ19ILa07S8Hqh@focusapp.plzzdeo.mongodb.net/"
+client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_DETAILS)
+database = client.intervention_db
+user_collection = database.get_collection("User")
 
 # Configure CORS for Electron/Frontend access
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your frontend origin
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+class UserGoal(BaseModel):
+    life_goal: str
+
 class InterventionLog(BaseModel):
     strategy: str
-    action: str  # 'accept', 'reject', 'complete'
+    action: str
     timestamp: float = time.time()
 
 class Strategy(BaseModel):
@@ -25,7 +35,7 @@ class Strategy(BaseModel):
     title: str
     description: str
 
-# Mock database
+# Mock database for logs
 intervention_logs = []
 strategies = [
     Strategy(id="pomodoro", title="Pomodoro Timer", description="Focus for 25 minutes, then take a 5-minute break."),
@@ -37,9 +47,21 @@ strategies = [
 async def root():
     return {"message": "Intervention Backend is running"}
 
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
+@app.get("/user/goal")
+async def get_user_goal():
+    user = await user_collection.find_one({"type": "settings"})
+    if user:
+        return {"life_goal": user["life_goal"]}
+    return {"life_goal": ""}
+
+@app.post("/user/goal")
+async def set_user_goal(goal: UserGoal):
+    await user_collection.update_one(
+        {"type": "settings"},
+        {"$set": {"life_goal": goal.life_goal}},
+        upsert=True
+    )
+    return {"status": "success"}
 
 @app.get("/strategies", response_model=List[Strategy])
 async def get_strategies():

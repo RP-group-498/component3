@@ -12,8 +12,7 @@
 <body>
   <div class="container">
     <div class="header">
-      <h1>🧠 Intervention UI Demo</h1>
-      <p class="subtitle">Standalone intervention components for productivity applications</p>
+      <h1>Intervention UI Demo</h1>
     </div>
 
     <!-- Intervention Demo Section -->
@@ -42,6 +41,17 @@
           <i data-lucide="refresh-cw"></i>
           <span>Reframe</span>
         </button>
+      </div>
+    </div>
+
+    <!-- Personalize Section -->
+    <div class="intervention-demo-section glass-card" style="margin-top: 20px;">
+      <h3><i data-lucide="settings"></i> Personalize</h3>
+      <p class="section-description">Set your life goal to personalize reframing interventions</p>
+      <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <input type="text" id="lifeGoalInput" placeholder="What is your current life goal? (e.g. Become a Doctor)" 
+               style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: white;">
+        <button id="saveGoalBtn" class="btn btn-primary">Save</button>
       </div>
     </div>
 
