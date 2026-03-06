@@ -4,15 +4,16 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Intervention UI Demo</title>
+  <!-- <title>Intervention UI Demo</title> -->
   <link rel="stylesheet" href="styles.css" />
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 
 <body>
   <div class="container">
     <div class="header">
-      <h1>Intervention UI Demo</h1>
+      <!-- <h1>Intervention UI Demo</h1> -->
     </div>
 
     <!-- Intervention Demo Section -->
@@ -44,6 +45,66 @@
       </div>
     </div>
 
+    <!-- Smart Suggestion Section -->
+    <div class="intervention-demo-section glass-card" style="margin-top: 20px;">
+      <h3><i data-lucide="cpu"></i> Smart Intervention (LinUCB)</h3>
+      <p class="section-description">Select a context scenario to simulate different user states</p>
+
+      <div style="display: flex; gap: 12px; align-items: flex-start; margin-top: 15px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 180px;">
+          <label for="scenarioSelect" style="display: block; margin-bottom: 6px; font-size: 0.85rem; opacity: 0.7;">Context Scenario</label>
+          <select id="scenarioSelect" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: white; font-size: 0.95rem; cursor: pointer;">
+            <option value="A">Scenario A — Low Urgency</option>
+            <option value="B">Scenario B — High Urgency</option>
+            <option value="C">Scenario C — Overdue</option>
+          </select>
+        </div>
+        <div style="flex: 2; min-width: 200px;">
+          <label style="display: block; margin-bottom: 6px; font-size: 0.85rem; opacity: 0.7;">Description</label>
+          <p id="scenarioDescription" style="margin: 0; padding: 10px 12px; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.9rem; opacity: 0.85; min-height: 40px;">
+            Far deadline, low switching, low impulsiveness.
+          </p>
+        </div>
+      </div>
+
+      <div style="margin-top: 15px;">
+        <button id="suggestBtn" class="btn btn-primary" style="width: 100%; padding: 14px;">
+          <i data-lucide="sparkles"></i> Suggest Best Intervention
+        </button>
+        <p id="suggestStatus" style="margin: 8px 0 0; font-size: 0.82rem; opacity: 0.6; text-align: center; min-height: 18px;"></p>
+      </div>
+    </div>
+
+    <!-- Motivation History Section -->
+    <div class="intervention-demo-section glass-card" style="margin-top: 20px;">
+      <h3><i data-lucide="trending-up"></i> Motivation Over Time</h3>
+      <p class="section-description">Tracks your computed motivation score each time a context is generated</p>
+
+      <div class="time-filter-bar">
+        <button class="time-filter-btn active" data-seconds="3600">1h</button>
+        <button class="time-filter-btn" data-seconds="10800">3h</button>
+        <button class="time-filter-btn" data-seconds="21600">6h</button>
+        <button class="time-filter-btn" data-seconds="86400">1d</button>
+        <button class="time-filter-btn" data-seconds="259200">3d</button>
+        <button class="time-filter-btn" data-seconds="604800">1w</button>
+        <button class="time-filter-btn" data-seconds="2592000">1mo</button>
+        <button class="time-filter-btn" data-seconds="7776000">3mo</button>
+      </div>
+
+      <div style="position: relative; margin-top: 16px; height: 240px;">
+        <canvas id="motivationChart" style="display: block;"></canvas>
+        <div id="motivationEmpty" style="display: none; position: absolute; inset: 0; align-items: center; justify-content: center; color: #9ca3af; font-size: 0.9rem; text-align: center; padding: 20px;">
+          No data in this time range yet.<br>Click <strong>Suggest Best Intervention</strong> to start logging.
+        </div>
+      </div>
+
+      <div class="motivation-legend">
+        <span><span class="legend-dot" style="background: #4ade80;"></span>Scenario A — Low Urgency</span>
+        <span><span class="legend-dot" style="background: #fb923c;"></span>Scenario B — High Urgency</span>
+        <span><span class="legend-dot" style="background: #f87171;"></span>Scenario C — Overdue</span>
+      </div>
+    </div>
+
     <!-- Personalize Section -->
     <div class="intervention-demo-section glass-card" style="margin-top: 20px;">
       <h3><i data-lucide="settings"></i> Personalize</h3>
@@ -59,6 +120,7 @@
 
   <!-- Load modules -->
   <script src="modules/interventionUI.js"></script>
+  <script src="modules/mockContext.js"></script>
   <script src="renderer.js"></script>
 
   <!-- Initialize Lucide Icons -->
